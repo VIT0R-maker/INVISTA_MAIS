@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invista+ | Scanner Fundamentalista</title>
+    <link rel="stylesheet" href="assets/mentor.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -148,6 +149,38 @@
             <button id="searchBtn" onclick="buscar()">Pesquisar</button>
         </div>
 
+        <section class="mentor" id="mentor" aria-labelledby="mentor-title">
+            <div class="mentor-heading">
+                <div>
+                    <span class="mentor-eyebrow">ENTENDA SEUS INVESTIMENTOS</span>
+                    <h2 id="mentor-title">Mentor IA <span aria-hidden="true">✦</span></h2>
+                    <p class="mentor-context" id="mentor-context">Conversa sobre finanças</p>
+                </div>
+                <button type="button" id="mentor-clear">Nova conversa sem ativo</button>
+            </div>
+            <p class="mentor-status" id="mentor-status" role="status" aria-live="polite">Entre na sua conta para usar o Mentor IA.</p>
+            <a class="mentor-login" id="mentor-login" href="login.html">Entrar para conversar</a>
+            <div class="mentor-actions">
+                <button type="button" id="mentor-summary" disabled>Resumir ativo</button>
+                <button type="button" id="mentor-retry" hidden>Tentar novamente</button>
+            </div>
+            <div class="mentor-messages" id="mentor-messages" role="log" aria-label="Conversa com o Mentor IA" aria-live="polite"></div>
+            <p class="mentor-source" id="mentor-source"></p>
+            <div class="mentor-suggestions" aria-label="Sugestões de perguntas">
+                <button type="button" data-question="Como interpretar P/VP e dividend yield em conjunto?" disabled>Entender indicadores</button>
+                <button type="button" data-question="Quais riscos devo observar ao analisar um ativo como este? Se não houver ativo selecionado, explique os principais riscos de ações e FIIs." disabled>Conhecer os riscos</button>
+                <button type="button" data-question="Como diversificar investimentos e qual o papel da reserva de emergência?" disabled>Aprender a diversificar</button>
+            </div>
+            <form id="mentor-form">
+                <label for="mentor-question">Sua dúvida financeira</label>
+                <div class="mentor-compose">
+                    <textarea id="mentor-question" maxlength="1500" rows="2" placeholder="Ex.: um dividend yield alto é sempre um bom sinal?" required disabled></textarea>
+                    <button type="submit" disabled>Enviar pergunta</button>
+                </div>
+            </form>
+            <p class="mentor-note">Conteúdo educativo gerado por Gemini; pode conter erros e não é recomendação de investimento. Até 30 consultas por dia. Perguntas e indicadores são enviados ao Google; não inclua dados pessoais.</p>
+        </section>
+
         <div id="resultContainer">
             <div class="message">Pronto para buscar Ações.</div>
         </div>
@@ -155,6 +188,8 @@
 
     <!-- Firebase + Script da Aplicação -->
     <script type="module">
+        import { API_BASE_URL } from './assets/config.js';
+        import { createMentor } from './assets/mentor.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -178,6 +213,13 @@
         let userFavorites = [];
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
+        let searchRevision = 0;
+        let searchController = null;
+        const mentor = createMentor({
+            root: document.getElementById('mentor'),
+            apiBase: API_BASE_URL,
+            getToken: () => currentUser?.getIdToken() ?? null,
+        });
 
         // 1. DICIONÁRIO COMPLETO DE DÚVIDAS (?)
         const TOOLTIPS = {
@@ -302,6 +344,8 @@
 
         // 3. OUVINTE DE ESTADO E AUTENTICAÇÃO
         onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            mentor.setUser(user);
             const btnAuth = document.getElementById('btn-auth');
             if (user) {
                 currentUser = user;
@@ -327,6 +371,10 @@
 
         // 4. FUNÇÕES DE INTERFACE E ABAS
         window.setMode = (mode) => {
+            searchRevision++;
+            searchController?.abort();
+            document.getElementById('searchBtn').disabled = false;
+            mentor.setAsset(null, currentPerfil);
             currentMode = mode;
             document.getElementById('btn-acoes').classList.remove('active');
             document.getElementById('btn-fiis').classList.remove('active');
@@ -353,8 +401,9 @@
 
         window.setPerfil = (perfil) => {
             currentPerfil = perfil;
+            mentor.setAsset(null, currentPerfil);
             const ticker = document.getElementById('tickerInput').value.trim();
-            if (ticker && document.querySelector('.results-header')) window.buscar();
+            if (ticker && currentMode !== 'favoritos') window.buscar();
         };
 
         // 5. FAVORITOS E AUTO-PESQUISA
@@ -503,22 +552,32 @@
             const container = document.getElementById('resultContainer');
             const btn = document.getElementById('searchBtn');
 
-            if (!ticker) return;
+            if (!ticker || currentMode === 'favoritos') return;
+            if (!/^[A-Z]{4}[0-9]{1,2}$/.test(ticker)) {
+                container.textContent = 'Informe um ticker válido, como PETR4 ou MXRF11.';
+                return;
+            }
+            const requestRevision = ++searchRevision;
+            searchController?.abort();
+            searchController = new AbortController();
+            mentor.setAsset(null, currentPerfil);
 
             btn.disabled = true;
             container.innerHTML = `<div class="message">Aspirando dados de <strong>${ticker}</strong>... Aguarde.</div>`;
             
-            const baseUrl = 'https://invistaai-ochre.vercel.app'; 
+            const baseUrl = API_BASE_URL;
             const endpoint = currentMode === 'acoes' ? `${baseUrl}/api/acoes` : `${baseUrl}/api/fiis`;
 
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
+                    signal: searchController.signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker, perfil: currentPerfil })
                 });
 
                 const data = await response.json();
+                if (requestRevision !== searchRevision) return;
 
                 if (!response.ok) {
                     container.innerHTML = `<div class="message" style="color: var(--bad); border-color: #ef9a9a;">${data.error}</div>`;
@@ -626,10 +685,12 @@
                         </div>
                     `;
                 }
+                mentor.setAsset({ ticker: data.ticker, tipo: currentMode }, currentPerfil);
             } catch (error) {
+                if (requestRevision !== searchRevision) return;
                 container.innerHTML = `<div class="message" style="color: var(--bad);">Erro de conexão com o Motor Quântico.</div>`;
             } finally {
-                btn.disabled = false;
+                if (requestRevision === searchRevision) btn.disabled = false;
             }
         };
 
@@ -639,7 +700,7 @@
 
         async function sincronizarComNuvem(listaAtualizada) {
   try {
-    await fetch('https://invistaai-ochre.vercel.app/api/favoritos/sync', {
+    await fetch(`${API_BASE_URL}/api/favoritos/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
