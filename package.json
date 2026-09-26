@@ -10,7 +10,12 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --env-file-if-exists=.env --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "emuladores": "npx --yes firebase-tools@latest emulators:start --only auth,firestore --project demo-invista",
+    "web": "npm --prefix web run dev",
+    "mobile": "npm --prefix mobile run start",
+    "simular": "node --env-file=.env scripts/simular-depositos.js",
+    "instalar-tudo": "npm install && npm --prefix web install && npm --prefix mobile install"
   },
   "dependencies": {
     "axios": "^1.7.7",

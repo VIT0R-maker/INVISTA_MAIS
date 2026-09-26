@@ -39,7 +39,8 @@ for (const file of ['index.html', 'login.html', 'cadastro.html', 'assets/mentor.
 let db;
 try {
   if (!getApps().length) {
-    initializeApp({
+    const emulador = process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.FIRESTORE_EMULATOR_HOST;
+    initializeApp(emulador ? { projectId: process.env.FIREBASE_PROJECT_ID || 'demo-invista' } : {
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,

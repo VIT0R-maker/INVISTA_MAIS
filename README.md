@@ -11,6 +11,19 @@ O projeto trabalha a educação financeira desde cedo, usando um cofrinho físic
 * **ODS da ONU:** 4 (educação de qualidade) e 8 (trabalho decente e crescimento econômico).
 * **Validação:** piloto com famílias voluntárias; os depósitos reais alimentam a análise estatística.
 
+## Como rodar
+
+O passo a passo completo (instalação, modo emulador sem senhas, app no celular, notebook e publicação) está em [`docs/como-rodar.md`](docs/como-rodar.md).
+
+| Parte | Pasta | Comando |
+| --- | --- | --- |
+| API | raiz | `npm start` |
+| Site React | `web/` | `npm run web` |
+| App React Native | `mobile/` | `npm run mobile` |
+| Emuladores do Firebase | raiz | `npm run emuladores` |
+| Firmware e circuito | `iot/` | Wokwi ou Arduino IDE |
+| Notebook de estatística | `docs/estatistica/` | Jupyter |
+
 ## Equipe
 
 * [@magreisz](https://github.com/magreisz)
@@ -129,7 +142,11 @@ lib/simulacao.js        simulação educativa: cofre x poupança x Selic
 lib/blynk.js            cliente da API HTTPS do Blynk
 lib/auth.js             Firebase ID token e chave do dispositivo
 iot/                   firmware ESP32, circuito Wokwi e guia do Blynk
+web/                   site em React (Vite, Recharts, Firebase Auth)
+mobile/                app em React Native (Expo)
 docs/openapi.yaml       especificação da API
+docs/estatistica/       notebook de análise e dados de exemplo
+docs/como-rodar.md      guia de instalação e execução
 lib/analysis.js         análise compartilhada de ações e FIIs
 lib/mentor.js           Gemini, validação, contexto e limite persistente
 lib/scraper.js          Investidor10, retry e cache

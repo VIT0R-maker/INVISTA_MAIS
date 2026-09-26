@@ -7,11 +7,13 @@ if (!/^[A-Za-z0-9]{10,40}$/.test(dispositivoId || '')) {
   process.exit(1);
 }
 
-initializeApp({ credential: cert({
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-}) });
+initializeApp(process.env.FIRESTORE_EMULATOR_HOST ? { projectId: process.env.FIREBASE_PROJECT_ID || 'demo-invista' } : {
+  credential: cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }),
+});
 const db = getFirestore();
 const depositos = db.collection('dispositivos').doc(dispositivoId).collection('depositos');
 
@@ -49,10 +51,15 @@ const dias = Math.min(Math.max(parseInt(argumento, 10) || 60, 1), 365);
 const hoje = new Date();
 hoje.setUTCHours(15, 0, 0, 0);
 let pesoTotal = 0;
+let diasSemDeposito = 0;
 const lote = [];
 for (let d = dias; d >= 1; d--) {
   const dia = new Date(hoje.getTime() - d * 86400000);
-  if (aleatorio() > CHANCE_POR_DIA[dia.getUTCDay()]) continue;
+  if (aleatorio() > CHANCE_POR_DIA[dia.getUTCDay()] && diasSemDeposito < 3) {
+    diasSemDeposito++;
+    continue;
+  }
+  diasSemDeposito = 0;
   const quantidade = 1 + Math.floor(aleatorio() * 3);
   for (let i = 0; i < quantidade; i++) {
     const cedula = aleatorio() < 0.15;

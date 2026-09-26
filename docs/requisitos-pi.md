@@ -8,9 +8,9 @@ Legenda: ✅ implementado · ⏳ pendente
 
 | Requisito | Onde | Status |
 | --- | --- | --- |
-| Linguagens para web e mobile | API em Node.js, firmware em C++, web em React, app em React Native (Expo) | ⏳ web React e app |
-| Coleta e envio de dados IoT para web e mobile | `iot/firmware`, `POST /api/dispositivos/{id}/depositos`, `GET .../estado` | ✅ API · ⏳ telas |
-| Front-end para visualizar os dados | Dashboards web e mobile | ⏳ |
+| Linguagens para web e mobile | API em Node.js, firmware em C++, web em React, app em React Native (Expo) | ✅ |
+| Coleta e envio de dados IoT para web e mobile | `iot/firmware`, `POST /api/dispositivos/{id}/depositos`, `GET .../estado` | ✅ |
+| Front-end para visualizar os dados | `web/src/paginas`, `mobile/src/telas` | ✅ |
 | Back-end para receber e processar os dados | `lib/cofrinho.js`, `lib/estatistica.js` | ✅ |
 | Integração com banco de dados | Firestore: `dispositivos`, `depositos`, `eventos`, `users` | ✅ |
 | Controle de versão | GitHub, commits de todos os integrantes | ⏳ repositório na org FatecFranca |
@@ -22,7 +22,7 @@ Legenda: ✅ implementado · ⏳ pendente
 | API RESTful | Recursos, verbos e códigos HTTP em `lib/cofrinho.js` e `lib/favoritos.js` | ✅ |
 | Documentação OpenAPI | `docs/openapi.yaml` e `/api/docs` | ✅ |
 | API integrada ao banco (persistência e consulta) | CRUD de dispositivos e favoritos; consultas por período | ✅ |
-| Front-end em React integrado à API | `web/` | ⏳ |
+| Front-end em React integrado à API | `web/`: login, cofrinhos, painel ao vivo, controles, estatísticas, simulação, scanner, favoritos e Mentor | ✅ |
 
 ## Internet das Coisas e Aplicações
 
@@ -43,16 +43,16 @@ Legenda: ✅ implementado · ⏳ pendente
 | Probabilidades | Depósito por dia da semana; chance de atingir a meta (normal) | ✅ |
 | Regressão | Tendência do saldo e calibração peso × saldo | ✅ |
 | Inferência | IC 95% da média e teste t de Welch | ✅ |
-| Gráficos e interpretação dos dados do projeto | Notebook com dados reais + simulados | ⏳ |
+| Gráficos e interpretação dos dados do projeto | `docs/estatistica/analise_cofrinho.ipynb` (dados simulados; refazer com os reais) | ✅ |
 
 ## Programação para Dispositivos Móveis I
 
 | Requisito | Onde | Status |
 | --- | --- | --- |
-| Consumir a API com dados dos sensores | App React Native usando `/estado`, `/depositos`, `/estatisticas` | ⏳ |
-| Widgets para mudar o estado dos atuadores | Switch (trava), seletor de cor, slider (brilho), botão (buzzer) → `PATCH .../atuadores` | ⏳ |
-| Processamento dos dados recebidos | Média móvel, projeção da meta, saldo convertido em cotas | ⏳ |
-| Apresentação gráfica | Gráficos de saldo, depósitos por dia e simulação | ⏳ |
+| Consumir a API com dados dos sensores | `mobile/src/telas/Painel.js` e `Estatisticas.js` | ✅ |
+| Widgets para mudar o estado dos atuadores | Switch (trava), seletor de cor, Slider (brilho) e botão (buzzer) em `Painel.js` | ✅ |
+| Processamento dos dados recebidos | `mobile/src/processamento.js`: média móvel, dias para a meta, cotas de FII, resumo dos depósitos | ✅ |
+| Apresentação gráfica | `mobile/src/componentes/Graficos.js`: linhas e barras em SVG | ✅ |
 
 ## Problema social
 
