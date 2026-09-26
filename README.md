@@ -1,92 +1,99 @@
-# Scanner de Ativos Fundamentalista — v2
+# Invista+ — Scanner fundamentalista com Mentor IA
 
-## Como rodar
+O Invista+ ajuda a estudar ações e fundos imobiliários da B3. O servidor consulta indicadores no Investidor10 e a Selic no Banco Central; calcula estimativas de Graham/Bazin, margens de segurança e o efeito bola de neve dos FIIs. O perfil Conservador, Moderado ou Arrojado muda a interpretação dos indicadores. O Firebase gerencia login e favoritos; a integração IoT existente gera relatórios por e-mail.
 
-```bash
-npm install
+## Mentor IA com Gemini
+
+- Ao concluir uma pesquisa, usuários conectados recebem um resumo educativo do ativo, com indicadores, riscos e limitações. A IA é chamada após a pesquisa, não a cada tecla.
+- O campo de perguntas aceita dúvidas financeiras e mantém as últimas quatro interações. As sugestões ajudam a interpretar indicadores, avaliar riscos e entender diversificação.
+- O ticker, o tipo de ativo e o perfil selecionados acompanham a pergunta. **Nova conversa sem ativo** permite falar de finanças em geral. Trocar ativo, aba, perfil ou conta limpa a conversa; respostas atrasadas são descartadas.
+- Os cards continuam funcionando mesmo quando a IA está indisponível. Há estados de carregamento, erro e nova tentativa.
+- O Gemini recebe os indicadores obtidos pelo próprio servidor, usando a mesma função de análise dos cards. O corpo enviado pelo navegador não fornece os valores usados pela IA.
+- As respostas usam texto simples, sem executar HTML. O sistema instrui a IA a reconhecer dados ausentes, evitar recomendações personalizadas e não inventar notícias, preços ou acesso a ferramentas. Essas instruções reduzem erros, mas não garantem exatidão.
+
+Não há integração com Claude nem BRAPI nesta versão. A IA não pesquisa a internet. Indicadores podem ter atraso; o horário mostrado é o da consulta, não da atualização na bolsa. A consulta da IA pode usar uma captura diferente da mostrada nos cards se a fonte mudar nesse intervalo. Valuations são estimativas, não preços garantidos. A Selic usada pode vir do cache ou do valor de contingência existente em `lib/bcb.js`.
+
+## Executar localmente
+
+Requer **Node.js 22.13 ou superior** (recomendado: Node 24).
+
+```sh
+npm ci
+```
+
+Copie `.env.example` para `.env`, preencha as variáveis e execute:
+
+```sh
 npm start
 ```
 
-Abra `http://localhost:3000`. A aba **FIIs** é a que você pediu para testar primeiro — os
-seletores de raspagem dela são exatamente os que você já validou no código antigo, só que
-agora com retry automático, cache de 5 minutos por ticker e mensagens de erro mais claras.
+Abra <http://localhost:3000>. `npm run dev` reinicia o servidor ao editar arquivos. `.env` é carregado pelo Node e ignorado pelo Git. Sem credenciais de IA/Firebase Admin, o scanner continua acessível e o Mentor informa a indisponibilidade.
 
-## O que mudou desde a v1
+| Variável de servidor | Finalidade |
+| --- | --- |
+| `GEMINI_API_KEY` | Chave do Google AI Studio; necessária para o Mentor |
+| `GEMINI_MODEL` | Opcional, padrão `gemini-3.5-flash-lite` |
+| `FIREBASE_PROJECT_ID` | Mesmo projeto do Firebase Auth da interface |
+| `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço Firebase Admin |
+| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço; aceita `\n` literal |
+| `EMAIL_USER`, `EMAIL_PASS` | Credenciais já usadas no relatório IoT por e-mail |
 
-- **Selic dinâmica**: em vez do `SELIC_ATUAL = 10.75` fixo, o servidor consulta a API do
-  Banco Central (SGS, série 432 — Meta Selic) a cada 6 horas e usa isso nas fórmulas de
-  Graham Revisado e Tupiniquim. É gratuita, oficial, sem chave. Ver `lib/bcb.js`.
-- **Graham Tupiniquim** implementado (`lib/valuation.js`) — ver nota de interpretação abaixo.
-- **Perfil de avaliação** (Conservador / Moderado / Arrojado) para Ações — muda os limiares
-  de "bom/neutro/ruim" de P/L, P/VP, DY, ROE, margem líquida, dívida e liquidez. Ver
-  `lib/classify.js`. O front manda o perfil escolhido no corpo do POST `/api/acoes`.
-- **Margem de segurança** exibida como legenda em cada card de valor justo (ex: "12,4% abaixo
-  do valor justo"), calculada a partir da própria cotação e do valor justo já retornados.
-- **Robustez do scraper**: retry com backoff (2 tentativas), cache em memória de 5 min por
-  ticker, erros 404 tratados separado de erros de rede/timeout.
-- **Código modularizado** em `lib/` (bcb, scraper, valuation, classify, format) — trocar ou
-  adicionar uma fonte de dados no futuro não deve exigir mexer nas rotas.
-- Formatação numérica pt-BR (separador de milhar) sem depender de ICU do Node.
+O login da interface usa a configuração pública Firebase existente nos HTMLs. Essa configuração é distinta da chave Gemini e da chave privada de serviço. Para outro projeto Firebase, atualize os três HTMLs e as variáveis do servidor, e autorize o domínio de acesso no Firebase Authentication.
 
-## Nota de interpretação: fórmula "Tupiniquim"
+## Ativar na Vercel e no GitHub Pages
 
-Sua descrição tinha duas partes: (1) trocar o 8,5 por 5,5, e (2) "dividir pelo patamar da
-taxa livre de risco atual". Testei a leitura mais literal da parte 2 (dividir direto por
-Selic, sem a razão Y1/Y) e o resultado fica instável — dependendo de usar Selic em % ou em
-decimal, o valor justo ou explode (P/L de 200x) ou fica bem baixo demais (P/L de 2x). Por
-isso implementei mantendo a mesma estrutura da fórmula revisada (`Y1/Y`, com Y1=4,4), só
-trocando a base para 5,5:
+1. Publique este código no projeto Vercel que atende o backend. O `vercel.json` encaminha as requisições ao Express e inclui explicitamente HTML/CSS/JS públicos no pacote da função. Use Node 24 e um plano/configuração com tempo de execução suficiente para a consulta de indicadores e a IA (até 60 segundos).
+2. Em **Settings → Environment Variables**, configure `GEMINI_API_KEY` e as três variáveis `FIREBASE_*`. Opcionalmente defina `GEMINI_MODEL`. Depois faça um novo deploy para aplicar as variáveis. Não use prefixos públicos e não coloque segredos em HTML, JavaScript do navegador ou Git.
+3. No Firebase Console → Firestore → Rules, publique as regras de `firestore.rules`, compatíveis com as coleções usadas neste repositório. Se seu banco tiver outras aplicações/coleções, incorpore as regras mantendo os acessos necessários. Remova regras genéricas que liberem todas as coleções: permissões Firestore são cumulativas, e um `allow false` não anula outro `allow true`.
+4. A coleção `mentorUsage` deve ficar inacessível a clientes. O Admin SDK do servidor acessa a coleção por IAM, independentemente dessas regras. Conceda à conta de serviço acesso ao Firestore. O arquivo também mantém favoritos privados por usuário e dispositivos acessíveis somente ao servidor.
+5. No GitHub Pages, a interface usa o backend definido em `assets/config.js`, atualmente `https://invistaai-ochre.vercel.app`. Altere essa URL se o projeto Vercel tiver outro domínio. Em localhost e na Vercel, a interface usa a própria origem. Para Pages, publique `index.html`, `login.html`, `cadastro.html` e a pasta `assets/`.
+6. Entre com uma conta Firebase, pesquise PETR4 na aba Ações ou MXRF11 na aba FIIs, confira o resumo e envie uma pergunta. Também teste **Nova conversa sem ativo**.
 
-```
-V = LPA × (5,5 + 2g) × (4,4 / Selic)
-```
+As configurações remotas da Vercel e as regras Firestore **não são publicadas automaticamente** por editar esses arquivos. A chave usada em um teste local também não configura a produção. Chaves expostas em conversas devem ser substituídas antes da ativação definitiva.
 
-Se o que você tinha em mente era literalmente remover a razão Y1/Y e dividir puro por Selic,
-é uma mudança pequena em `grahamTupiniquim()` — troque a última parte por `/ selicAtual`
-(Selic em decimal, ex: `10.75/100`) e ajuste a constante para calibrar a escala. Me manda um
-exemplo numérico de referência (LPA, g, Selic e o valor justo que você esperava) que eu ajusto
-certinho.
+## Uso, privacidade e falhas
 
-## Sobre usar uma API em vez do scraper
+`POST /api/mentor` exige um Firebase ID token no header `Authorization: Bearer ...`. Contas anônimas são recusadas. Há um limite transacional no Firestore de **30 solicitações por conta por dia UTC**, com intervalo mínimo de cinco segundos; ele funciona entre diferentes instâncias da Vercel. A renovação diária ocorre às 00h UTC (21h do dia anterior em Brasília).
 
-Pesquisei as opções gratuitas brasileiras antes de mexer no código:
+As tentativas aceitas consomem a cota antes de consultar fontes externas, inclusive quando uma fonte falha. O limite por conta não é um teto global de gastos: contas diferentes têm cotas diferentes. Configure também cotas e alertas no projeto Google. A proteção depende de publicar as regras do Firestore indicadas acima.
 
-- **brapi.dev**: é a API financeira BR mais completa hoje, mas o plano gratuito (15 mil
-  requisições/mês) só dá cotação básica. Indicadores detalhados de FIIs — vacância,
-  relatórios CVM, carteira, segmento — ficam no plano **Pro (R$ 139,99/mês)**. Não dá pra
-  cobrir os campos que você pediu de graça.
-- **BCB (Banco Central) SGS**: 100% gratuita, oficial, sem chave — mas só tem dados
-  macroeconômicos (Selic, câmbio, IPCA etc.), não tem indicadores de ações/FIIs. Por isso ela
-  entra só para a Selic, complementando o scraper.
-- **Conclusão**: não existe fonte 100% gratuita com todos os campos que você listou (LPA,
-  VPA, ROIC, margens, vacância, cotistas, taxa de administração...). O scraper continua sendo
-  a única forma de ter tudo isso sem pagar. Se no futuro quiser eliminar o risco de o site
-  mudar o HTML, o brapi.dev Pro é a opção mais direta — e como o scraper já está isolado em
-  `lib/scraper.js`, trocar por uma chamada de API ali dentro é uma mudança localizada, não
-  precisa tocar nas rotas nem no front.
+Perguntas, histórico recente e indicadores são enviados ao Google. O servidor não persiste conversas nem registra chaves ou respostas do provedor em logs. O histórico fica somente na memória da página. O Firestore guarda apenas um identificador derivado do UID, dia, contador e horário da última solicitação; o documento é reutilizado no próximo dia. O tratamento de dados pelo Google segue os termos do serviço e do plano da conta.
 
-## Estrutura
+| Resposta | Significado |
+| --- | --- |
+| 400 / 413 | Pergunta, ticker, perfil, histórico ou tamanho inválido |
+| 401 | Login ausente, expirado, inválido ou anônimo |
+| 422 | Geração bloqueada ou incompleta; reformule a pergunta |
+| 429 | Limite da conta, intervalo mínimo ou cota do provedor |
+| 502 / 504 | Falha da fonte de indicadores, resposta inválida ou timeout da IA |
+| 503 | Chave/modelo/Firebase indisponível ou configuração pendente |
 
-```
-scanner-ativos/
-├── package.json
-├── server.js           # rotas /api/acoes e /api/fiis
-├── lib/
-│   ├── bcb.js           # Selic via Banco Central (com cache de 6h)
-│   ├── scraper.js       # raspagem do Investidor10 (com retry + cache de 5min)
-│   ├── valuation.js      # Graham Número, Revisado, Tupiniquim, Bazin
-│   ├── classify.js       # bom/neutro/ruim, com 3 perfis para ações
-│   └── format.js         # parsing de texto raspado -> número, formatação pt-BR
-    └── index.html         # front-end (tabs Ações/FIIs + seletor de perfil)
+O timeout da chamada Gemini é de 20 segundos; o navegador espera até 65 segundos pela operação completa. O scraper mantém o cache original de cinco minutos por instância. Não há repetição automática de chamadas pagas nem cache persistente de respostas de IA.
+
+## Arquitetura
+
+```text
+index.html + assets/    interface, login Firebase, cards e Mentor
+server.js              Express, autenticação da IA, rotas, favoritos/IoT
+lib/analysis.js         análise compartilhada de ações e FIIs
+lib/mentor.js           Gemini, validação, contexto e limite persistente
+lib/scraper.js          Investidor10, retry e cache
+lib/bcb.js              Selic, cache e contingência
+lib/valuation.js        Graham/Bazin
+lib/classify.js         classificação por perfil
+lib/format.js           parsing e formatação pt-BR
+firestore.rules        acesso das coleções do projeto
+test/                  provas do backend e da interface
 ```
 
-## Próximos passos sugeridos
+A adaptação Graham Tupiniquim existente continua como `LPA × (5,5 + 2g) × (4,4 / Selic)`, com crescimento e Selic em pontos percentuais. A integração não muda as fórmulas ou os critérios de classificação.
 
-1. Teste a aba FIIs com alguns tickers (MXRF11, HGLG11, KNCR11...) e me avisa se algum campo
-   vier vazio — o `dictRaw`/`dictNum` do `scraper.js` loga a chave normalizada, então é rápido
-   de ajustar o mapeamento se o Investidor10 tiver mudado alguma classe HTML.
-2. Depois de validar FIIs, testamos Ações do mesmo jeito — os seletores são os mesmos padrões
-   (`._card`, `.cell`), então devem funcionar, mas não testei ao vivo.
-3. Se quiser, dá pra levar o seletor de perfil (Conservador/Moderado/Arrojado) para a aba de
-   FIIs também — hoje ele só existe para Ações porque foi assim que você descreveu o pedido.
-# INVISTA_MAIS
+## Verificação
+
+```sh
+npm test
+```
+
+Os testes não usam chaves reais nem fazem consultas externas: verificam autenticação, contexto reconstruído no servidor, contratos do Gemini, erros sanitizados, limite de uso, cálculos e interface. Incluem respostas atrasadas, isolamento de histórico, login, erros recuperáveis e conteúdo HTML tratado como texto. Um teste real separado requer as variáveis e os serviços configurados.
+
+Referências: [API Gemini](https://ai.google.dev/api/generate-content), [modelo padrão](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [segurança de chaves](https://ai.google.dev/gemini-api/docs/api-key).

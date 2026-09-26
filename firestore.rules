@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Somente o servidor (Admin SDK) acessa uso da IA e dispositivos IoT.
+    match /mentorUsage/{document} {
+      allow read, write: if false;
+    }
+    match /devices/{document} {
+      allow read, write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
