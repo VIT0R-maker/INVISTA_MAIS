@@ -109,6 +109,7 @@ function Configuracoes({ dispositivo, aoMudar }) {
   const navegar = useNavigate();
   const [apelido, setApelido] = useState(dispositivo.apelido);
   const [meta, setMeta] = useState(dispositivo.metaCentavos ? String(dispositivo.metaCentavos / 100).replace('.', ',') : '');
+  const [tokenBlynk, setTokenBlynk] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
   const [novaChave, setNovaChave] = useState('');
@@ -127,7 +128,10 @@ function Configuracoes({ dispositivo, aoMudar }) {
     evento.preventDefault();
     executar(async () => {
       const metaCentavos = meta ? Math.round(Number(meta.replace(',', '.')) * 100) : null;
-      await api(`/api/dispositivos/${dispositivo.id}`, { metodo: 'PATCH', corpo: { apelido: apelido.trim(), metaCentavos } });
+      const corpo = { apelido: apelido.trim(), metaCentavos };
+      if (tokenBlynk.trim()) corpo.blynkToken = tokenBlynk.trim();
+      await api(`/api/dispositivos/${dispositivo.id}`, { metodo: 'PATCH', corpo });
+      setTokenBlynk('');
       setMensagem('Alterações salvas.');
       aoMudar();
     });
@@ -156,6 +160,10 @@ function Configuracoes({ dispositivo, aoMudar }) {
         <label>
           Meta (R$)
           <input inputMode="decimal" value={meta} onChange={e => setMeta(e.target.value)} placeholder="Sem meta" />
+        </label>
+        <label>
+          Novo token do Blynk
+          <input type="password" autoComplete="off" value={tokenBlynk} onChange={e => setTokenBlynk(e.target.value)} placeholder="Deixe em branco para manter" />
         </label>
         <button className="botao">Salvar</button>
       </form>

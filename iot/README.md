@@ -1,4 +1,4 @@
-# Cofrinho Invista+ (ESP32 + Blynk + Wokwi)
+# Cofrinho Invista Mais (ESP32 + Blynk + Wokwi)
 
 O cofrinho detecta cada depósito, pesa o conteúdo e manda os dados por dois caminhos:
 
@@ -31,7 +31,7 @@ No cofre físico, coloque um LED iluminando o LDR do outro lado da fenda: a moed
 
 ## Blynk
 
-1. Em **Developer Zone → My Templates**, crie o template *Cofrinho Invista+* (ESP32, Wi-Fi).
+1. Em **Zona do desenvolvedor → Meus modelos**, crie o modelo *Cofrinho Invista Mais* (ESP32, Wi-Fi). O Blynk não aceita "+" em nomes. O modelo do grupo já existe: ID `TMPL2Iy83wKpE`, região NY3 (`ny3.blynk.cloud`).
 2. Crie os datastreams (Virtual Pin):
 
 | Pino | Nome | Tipo | Faixa | Quem escreve |
@@ -48,8 +48,10 @@ No cofre físico, coloque um LED iluminando o LDR do outro lado da fenda: a moed
 | V9 | Meta (R$) | Double | 0 a 10000 | API |
 
 3. Em **Events**, crie `meta_atingida` e `violacao` (tampa aberta com a trava ligada).
-4. No **Web Dashboard**, monte: Gauge (V0), Label (V1), Chart (V0 e V2), LED (V4), Switch (V5), Menu ou Segmented Switch (V6), Slider (V7), Button em modo *push* (V8) e Label (V9).
-5. Crie o dispositivo a partir do template e copie o `BLYNK_TEMPLATE_ID`, o `BLYNK_TEMPLATE_NAME` e o `BLYNK_AUTH_TOKEN`.
+Unidades: `R$` (personalizada) em V0, V1 e V9; grama em V2; % em V3. Histórico "Média de 1 minuto" em V0, V1 e V2 para os gráficos.
+
+4. No **Painel de controle** (dashboard web), monte: medidor (V0, 0 a 200), rótulos (V1, V2, V3, V9), gráfico (V0), LED (V4), interruptor (V5), mudança segmentada (V6: Desligado, Verde, Amarelo, Vermelho, Azul), controle deslizante (V7, enviar ao soltar) e botão em modo enviar (V8).
+5. Crie o dispositivo a partir do modelo e use o botão *Copiar para a área de transferência* para levar `BLYNK_TEMPLATE_ID`, `BLYNK_TEMPLATE_NAME` e `BLYNK_AUTH_TOKEN` ao `secrets.h`. O token também vai no cadastro do cofrinho no site (ou em Configurações, no painel do cofrinho).
 
 O plano gratuito tem 100 mil mensagens por mês. Por isso a telemetria (peso, luz e tampa) vai a cada 5 minutos, e os depósitos são enviados no momento em que acontecem.
 

@@ -403,7 +403,7 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Blynk.config(BLYNK_AUTH_TOKEN);
+  Blynk.config(BLYNK_AUTH_TOKEN, BLYNK_SERVIDOR);
 
   timer.setInterval(TELEMETRIA_MS, enviarTelemetria);
   timer.setInterval(15000L, enviarPendentes);
