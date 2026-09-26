@@ -8,7 +8,7 @@ service cloud.firestore {
     match /mentorUsage/{document} {
       allow read, write: if false;
     }
-    match /devices/{document} {
+    match /dispositivos/{document=**} {
       allow read, write: if false;
     }
     match /{document=**} {

@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import { readFileSync } from 'node:fs';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
@@ -10,11 +12,23 @@ import { criarContextoMentor } from './lib/mentor-context.js';
 
 import { analisarAtivo, validarAtivo } from './lib/analysis.js';
 import { perfisAcoesDisponiveis, perfisFiiDisponiveis } from './lib/classify.js';
+import { getSelicAtual } from './lib/bcb.js';
+import { criarClienteBlynk } from './lib/blynk.js';
+import { criarRotasDispositivos } from './lib/cofrinho.js';
+import { criarRotasFavoritos } from './lib/favoritos.js';
+import { HttpError } from './lib/auth.js';
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.set('trust proxy', 1);
+
+const origensPermitidas = (process.env.CORS_ORIGINS ||
+  'https://invistaai-ochre.vercel.app,https://vit0r-maker.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8081')
+  .split(',').map(origem => origem.trim()).filter(Boolean);
+app.use(cors({ origin: (origem, callback) => callback(null, !origem || origensPermitidas.includes(origem)) }));
 app.use(express.json({ limit: '48kb' }));
+app.use('/api', rateLimit({ windowMs: 60000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { error: 'Muitas requisições. Aguarde um minuto.' } }));
 
 // Lista explícita: nunca expor .env, código do servidor ou credenciais como arquivos estáticos.
 for (const file of ['index.html', 'login.html', 'cadastro.html', 'assets/mentor.js', 'assets/mentor.css', 'assets/config.js']) {
@@ -110,122 +124,44 @@ app.post('/api/fiis', async (req, res) => {
   }
 });
 
-// =================================================================
-// ROTA DE SINCRONIZAÇÃO: FRONTEND -> FIREBASE
-// =================================================================
-app.post('/api/favoritos/sync', async (req, res) => {
-  const { deviceId, favoritos } = req.body;
-  
-  if (!deviceId || !Array.isArray(favoritos)) {
-    return res.status(400).json({ error: 'Dados inválidos.' });
-  }
-
+app.get('/api/ativos/:tipo/:ticker', async (req, res) => {
+  const { tipo } = req.params;
+  if (!['acoes', 'fiis'].includes(tipo)) return res.status(404).json({ error: 'Tipo de ativo inválido. Use acoes ou fiis.' });
+  let ticker;
   try {
-    if (!db) throw new Error("Banco de dados não está conectado.");
-    
-    // Atualiza apenas a matriz 'ativosFavoritos' no documento do usuário
-    const docRef = db.collection('devices').doc(deviceId);
-    await docRef.set({ ativosFavoritos: favoritos }, { merge: true });
-    
-    console.log(`[Sync] Nuvem atualizada para o aparelho ${deviceId}:`, favoritos);
-    res.json({ success: true, message: 'Sincronizado com sucesso!' });
-
+    const input = validarAtivo({ ticker: req.params.ticker, perfil: req.query.perfil });
+    ticker = input.ticker;
+    const indicadores = await analisarAtivo({ ...input, tipo });
+    res.json({ ...indicadores, mentorContext: criarContextoMentor(indicadores, tipo, process.env.GEMINI_API_KEY) });
   } catch (error) {
-    console.error("Erro ao sincronizar favoritos na nuvem:", error);
-    res.status(500).json({ error: 'Falha ao salvar na nuvem.' });
+    if (error.status === 400) return res.status(400).json({ error: error.message });
+    tratarErro(res, error, ticker || '', tipo === 'fiis' ? 'FII' : 'Ação');
   }
 });
 
-// =================================================================
-// ROTA DO IOT: FIREBASE REAL + GMAIL + VALUATION
-// =================================================================
-app.post('/api/relatorio', async (req, res) => {
-  const { deviceId } = req.body;
-  if (!deviceId) return res.status(400).json({ error: 'Device ID não informado.' });
-
-  try {
-    if (!db) throw new Error("Banco de dados não está conectado.");
-
-    const docRef = db.collection('devices').doc(deviceId);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Aparelho não cadastrado no Firebase.' });
-    }
-
-    const usuario = doc.data();
-    console.log(`[IoT] Analisando ativos de ${usuario.nome}: ${usuario.ativosFavoritos.join(', ')}`);
-
-    let relatorioHTML = `
-      <div style="font-family: Arial; color: #333;">
-        <h2 style="color: #0056b3;">Relatório Invista+</h2>
-        <p>Olá, <b>${usuario.nome}</b>! Aqui está a análise atualizada da sua carteira disparada pelo seu dispositivo físico:</p>
-        <hr>
-    `;
-    
-    for (const ticker of usuario.ativosFavoritos) {
-      try {
-        // Verifica se o ticker é um Fundo Imobiliário (termina com 11) ou Ação
-        const isFii = ticker.endsWith('11');
-        const endpoint = isFii ? 'api/fiis' : 'api/acoes';
-
-        const response = await fetch(`https://invistaai-ochre.vercel.app/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticker: ticker, perfil: "moderado" })
-        });
-        
-        const dados = await response.json();
-        
-        if (isFii) {
-          // Layout específico para FIIs
-          relatorioHTML += `
-            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #28a745; background: #f9f9f9;">
-              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(FII)</span></h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
-                <li><b>P/VP:</b> ${dados.pvp?.value || '-'}</li>
-                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
-                <li><b>Último Rendimento:</b> ${dados.ultimoRendimento?.value || '-'}</li>
-              </ul>
-            </div>
-          `;
-        } else {
-          // Layout original para Ações
-          relatorioHTML += `
-            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #0056b3; background: #f9f9f9;">
-              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(Ação)</span></h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
-                <li><b>P/L:</b> ${dados.pl?.value || '-'}</li>
-                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
-                <li><b>Valor de Graham:</b> ${dados.valorGrahamTupiniquim?.value || '-'}</li>
-              </ul>
-            </div>
-          `;
-        }
-      } catch (e) {
-        relatorioHTML += `<p><b>${ticker}:</b> Falha ao analisar este ativo no momento.</p>`;
-      }
-    }
-    
-    relatorioHTML += `<br><p><i>Análise gerada automaticamente pelo sistema Invista+ IoT.</i></p></div>`;
-
-    await transporter.sendMail({
-      from: `"Motor Invista+" <${process.env.EMAIL_USER}>`,
-      to: usuario.email,
-      subject: `📈 Relatório de Ativos Invista+ (${usuario.nome})`,
-      html: relatorioHTML
-    });
-
-    console.log(`[IoT] E-mail enviado com sucesso para ${usuario.email}!`);
-    res.json({ success: true, message: "Relatorio enviado no e-mail!" });
-
-  } catch (error) {
-    console.error("Erro geral no IoT:", error);
-    res.status(500).json({ error: 'Falha ao processar relatório.' });
+const verifyToken = token => getAuth().verifyIdToken(token);
+const blynk = criarClienteBlynk({ servidor: process.env.BLYNK_SERVER || 'blynk.cloud' });
+const enviarEmail = ({ para, assunto, html }) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new HttpError(503, 'O envio de e-mail não está configurado no servidor.');
   }
-});
+  return transporter.sendMail({ from: `"Invista+" <${process.env.EMAIL_USER}>`, to: para, subject: assunto, html });
+};
+
+app.use('/api/usuarios/me/favoritos', criarRotasFavoritos({ db, verifyToken }));
+app.use('/api/dispositivos', criarRotasDispositivos({
+  db, verifyToken, blynk, enviarEmail, getSelic: getSelicAtual, analisarAtivo,
+}));
+
+const openapi = readFileSync(new URL('docs/openapi.yaml', import.meta.url), 'utf8');
+app.get('/api/openapi.yaml', (_req, res) => res.type('application/yaml').send(openapi));
+app.get('/api/docs', (_req, res) => res.type('html').send(`<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Invista+</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"></head>
+<body><div id="swagger"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>SwaggerUIBundle({ url: '/api/openapi.yaml', dom_id: '#swagger' });</script></body></html>`));
+
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
 
 app.use((error, _req, res, _next) => {
   const status = error.type === 'entity.too.large' ? 413 : error.type === 'entity.parse.failed' ? 400 : 500;

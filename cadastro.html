@@ -53,7 +53,7 @@
                 </div>
                 <div class="input-group">
                     <label>Senha</label>
-                    <input type="password" id="senha" placeholder="Crie uma senha (mín. 6 caracteres)" required minlength="6">
+                    <input type="password" id="senha" placeholder="Crie uma senha (mín. 8 caracteres)" required minlength="8">
                 </div>
                 
                 <button type="submit" id="submitBtn" class="btn-submit">Cadastrar</button>
@@ -104,7 +104,7 @@
                 if (error.code === 'auth/email-already-in-use') {
                     errorDiv.innerText = 'Este e-mail já está cadastrado.';
                 } else if (error.code === 'auth/weak-password') {
-                    errorDiv.innerText = 'A senha deve ter pelo menos 6 caracteres.';
+                    errorDiv.innerText = 'A senha deve ter pelo menos 8 caracteres.';
                 } else {
                     errorDiv.innerText = 'Erro ao criar conta. Tente novamente.';
                     console.error(error);
