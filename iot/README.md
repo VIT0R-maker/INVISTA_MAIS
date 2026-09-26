@@ -65,10 +65,13 @@ Sem `DISPOSITIVO_ID` e `CHAVE_DISPOSITIVO`, o firmware funciona só com o Blynk.
 
 ## Rodar no Wokwi
 
-1. Abra um projeto novo de ESP32 em <https://wokwi.com> e cole o conteúdo de `wokwi/diagram.json` na aba `diagram.json`.
-2. Cole `firmware/cofrinho/cofrinho.ino` em `sketch.ino`.
-3. Crie as abas `certificados.h` (copie o arquivo) e `secrets.h` (a partir de `secrets.example.h`, com `WIFI_SSID "Wokwi-GUEST"`).
-4. Cole `wokwi/libraries.txt` na aba `libraries.txt` e inicie a simulação.
+Projeto pronto: <https://wokwi.com/projects/476253388257385473>
+
+1. Abra o link acima (logado no Wokwi).
+2. Na aba `secrets.h`, troque `cole-aqui-o-auth-token-do-dispositivo` pelo token do dispositivo no Blynk.
+3. Clique em ▶. **Não salve** com o token dentro: o projeto é público.
+
+Para montar do zero: crie um projeto ESP32, cole `wokwi/diagram.json`, `firmware/cofrinho/cofrinho.ino` (em `sketch.ino`), `wokwi/libraries.txt` e crie as abas `certificados.h` e `secrets.h` (a partir de `secrets.example.h`, acrescentando `#define BLYNK_SEM_TLS`).
 
 Como interagir com a simulação:
 

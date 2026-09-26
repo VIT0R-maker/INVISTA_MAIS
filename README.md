@@ -21,7 +21,7 @@ O passo a passo completo (instalação, modo emulador sem senhas, app no celular
 | Site React | `web/` | `npm run web` |
 | App React Native | `mobile/` | `npm run mobile` |
 | Emuladores do Firebase | raiz | `npm run emuladores` |
-| Firmware e circuito | `iot/` | Wokwi ou Arduino IDE |
+| Firmware e circuito | `iot/` | [Simulação no Wokwi](https://wokwi.com/projects/476253388257385473) ou Arduino IDE |
 | Notebook de estatística | `docs/estatistica/` | Jupyter |
 
 ## Equipe
