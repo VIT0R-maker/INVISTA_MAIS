@@ -49,7 +49,10 @@ export default function Estatisticas() {
     <section>
       <div className="linha-titulo">
         <h1>Estatísticas dos depósitos</h1>
-        <Link className="botao secundario" to={`/cofrinhos/${id}`}>Voltar ao painel</Link>
+        <div className="acoes">
+          <Link className="botao" to={`/cofrinhos/${id}/simulacao`}>Simulação</Link>
+          <Link className="botao secundario" to={`/cofrinhos/${id}`}>Voltar ao painel</Link>
+        </div>
       </div>
 
       <form className="painel filtros" onSubmit={ev => { ev.preventDefault(); setAplicado(filtro); }}>

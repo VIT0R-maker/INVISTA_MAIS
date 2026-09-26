@@ -25,7 +25,10 @@ export default function Simulacao() {
     <section>
       <div className="linha-titulo">
         <h1>Quanto seu dinheiro renderia?</h1>
-        <Link className="botao secundario" to={`/cofrinhos/${id}`}>Voltar ao painel</Link>
+        <div className="acoes">
+          <Link className="botao" to={`/cofrinhos/${id}/estatisticas`}>Estatísticas</Link>
+          <Link className="botao secundario" to={`/cofrinhos/${id}`}>Voltar ao painel</Link>
+        </div>
       </div>
 
       <form className="painel filtros" onSubmit={aplicar}>
