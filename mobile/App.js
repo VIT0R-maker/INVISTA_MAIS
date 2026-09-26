@@ -49,7 +49,7 @@ export default function App() {
         <StatusBar style="dark" />
         {usuario && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: cores.borda }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: cores.primaria }}>Invista+</Text>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: cores.primaria }}>Cofrinho Invista+</Text>
             <View style={{ flexDirection: 'row', gap: 16 }}>
               {dispositivo && (
                 <Pressable onPress={() => setDispositivo(null)} accessibilityRole="button">

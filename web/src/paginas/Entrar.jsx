@@ -43,8 +43,8 @@ export default function Entrar() {
   return (
     <div className="tela-entrada">
       <form className="painel entrada" onSubmit={enviar}>
-        <h1 className="marca grande"><span className="marca-icone">+</span> Invista+</h1>
-        <p className="subtitulo">Cofrinho conectado e educação financeira</p>
+        <h1 className="marca grande"><span className="marca-icone">+</span> Cofrinho Invista+</h1>
+        <p className="subtitulo">Educação financeira com um cofrinho conectado</p>
         <div className="abas">
           <button type="button" className={modo === 'entrar' ? 'ativa' : ''} onClick={() => setModo('entrar')}>Entrar</button>
           <button type="button" className={modo === 'criar' ? 'ativa' : ''} onClick={() => setModo('criar')}>Criar conta</button>

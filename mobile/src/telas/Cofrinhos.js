@@ -14,7 +14,7 @@ export default function Cofrinhos({ aoEscolher }) {
       <Titulo>Meus cofrinhos</Titulo>
       <Erro mensagem={erro} />
       {dados?.dispositivos.length === 0 && (
-        <Text style={estilos.suave}>Nenhum cofrinho ainda. Cadastre o primeiro pelo site do Invista+.</Text>
+        <Text style={estilos.suave}>Nenhum cofrinho ainda. Cadastre o primeiro pelo site do Cofrinho Invista+.</Text>
       )}
       {dados?.dispositivos.map(d => (
         <Pressable key={d.id} onPress={() => aoEscolher(d)} accessibilityRole="button">

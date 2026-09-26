@@ -10,7 +10,7 @@ export default function Layout() {
     <>
       <header className="topo">
         <NavLink to="/" className="marca">
-          <span className="marca-icone">+</span> Invista+
+          <span className="marca-icone">+</span> Cofrinho Invista+
         </NavLink>
         <nav className="menu">
           <NavLink to="/" end>Cofrinhos</NavLink>
