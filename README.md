@@ -2,6 +2,14 @@
 
 O Invista+ ajuda a estudar ações e fundos imobiliários da B3. O servidor consulta indicadores no Investidor10 e a Selic no Banco Central; calcula estimativas de Graham/Bazin, margens de segurança e o efeito bola de neve dos FIIs. O perfil Conservador, Moderado ou Arrojado muda a interpretação dos indicadores. O Firebase gerencia login e favoritos. O **Cofrinho Invista+** (ESP32 + Blynk) registra depósitos reais, alimenta a análise estatística e pode ser controlado pela web e pelo app.
 
+## Acesse
+
+| O quê | Link |
+| --- | --- |
+| Site (dashboard do cofrinho) | https://invista-mais-brown.vercel.app |
+| API e documentação OpenAPI | https://invista-mais-api.vercel.app/api/docs |
+| Simulação do cofrinho no Wokwi | https://wokwi.com/projects/476253388257385473 |
+
 ## Problema e impacto social
 
 O projeto trabalha a educação financeira desde cedo, usando um cofrinho físico conectado para transformar cada moeda guardada em aprendizado.

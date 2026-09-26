@@ -23,7 +23,7 @@ const port = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 const origensPermitidas = (process.env.CORS_ORIGINS ||
-  'https://invista-mais-api.vercel.app,https://vit0r-maker.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8081')
+  'https://invista-mais-brown.vercel.app,https://invista-mais-api.vercel.app,https://vit0r-maker.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8081')
   .split(',').map(origem => origem.trim()).filter(Boolean);
 app.use(cors({ origin: (origem, callback) => callback(null, !origem || origensPermitidas.includes(origem)) }));
 app.use(express.json({ limit: '48kb' }));

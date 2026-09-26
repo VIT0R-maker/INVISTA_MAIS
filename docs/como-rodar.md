@@ -129,7 +129,7 @@ npm --prefix web run build
 
 | Parte | Onde | Como |
 | --- | --- | --- |
-| API | Vercel (projeto atual) | Deploy da raiz do repositório com as variáveis do `.env.example` |
-| Site | Vercel (novo projeto) | Root Directory `web`, variável `VITE_API_URL` com a URL da API; depois inclua a URL do site em `CORS_ORIGINS` na API |
+| API | Vercel (projeto `invista-mais-api`, https://invista-mais-api.vercel.app) | Deploy da raiz do repositório com as variáveis do `.env.example` |
+| Site | Vercel (projeto `invista-mais`, https://invista-mais-brown.vercel.app) | Root Directory `web`, variável `VITE_API_URL` com a URL da API; a URL do site já está liberada no CORS da API |
 | Regras do banco | Firebase | Publicar `firestore.rules` no console |
 | App | Expo Go | Para a apresentação basta o Expo Go; para gerar APK: `npx eas build -p android --profile preview` (precisa de conta Expo) |
