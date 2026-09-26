@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "author": "Equipe Invista+",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": -150, "left": 180, "attrs": { "i2cAddress": "0x3c" } },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": -130, "left": -260, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot1", "top": -40, "left": -250, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "btn1", "top": 70, "left": -250, "attrs": { "color": "green" } },
+    { "type": "wokwi-slide-switch", "id": "tampa", "top": 150, "left": -230, "attrs": {} },
+    { "type": "wokwi-hx711", "id": "balanca", "top": 230, "left": -280, "attrs": { "type": "5kg" } },
+    { "type": "wokwi-servo", "id": "servo1", "top": 40, "left": 220, "attrs": {} },
+    { "type": "wokwi-rgb-led", "id": "rgb1", "top": 150, "left": 200, "attrs": { "common": "cathode" } },
+    { "type": "wokwi-buzzer", "id": "bz1", "top": 200, "left": 280, "attrs": { "volume": "0.1" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "oled1:GND", "esp:GND.2", "black", [] ],
+    [ "oled1:VCC", "esp:3V3", "red", [] ],
+    [ "oled1:SDA", "esp:21", "green", [] ],
+    [ "oled1:SCL", "esp:22", "yellow", [] ],
+
+    [ "ldr1:VCC", "esp:3V3", "red", [] ],
+    [ "ldr1:GND", "esp:GND.1", "black", [] ],
+    [ "ldr1:AO", "esp:34", "orange", [] ],
+
+    [ "pot1:VCC", "esp:3V3", "red", [] ],
+    [ "pot1:GND", "esp:GND.1", "black", [] ],
+    [ "pot1:SIG", "esp:35", "orange", [] ],
+
+    [ "btn1:1.r", "esp:4", "blue", [] ],
+    [ "btn1:2.r", "esp:GND.1", "black", [] ],
+
+    [ "tampa:2", "esp:27", "blue", [] ],
+    [ "tampa:1", "esp:GND.1", "black", [] ],
+
+    [ "balanca:VCC", "esp:3V3", "red", [] ],
+    [ "balanca:GND", "esp:GND.1", "black", [] ],
+    [ "balanca:DT", "esp:16", "purple", [] ],
+    [ "balanca:SCK", "esp:17", "purple", [] ],
+
+    [ "servo1:V+", "esp:5V", "red", [] ],
+    [ "servo1:GND", "esp:GND.2", "black", [] ],
+    [ "servo1:PWM", "esp:18", "orange", [] ],
+
+    [ "rgb1:R", "esp:25", "red", [] ],
+    [ "rgb1:G", "esp:26", "green", [] ],
+    [ "rgb1:B", "esp:33", "blue", [] ],
+    [ "rgb1:COM", "esp:GND.2", "black", [] ],
+
+    [ "bz1:1", "esp:GND.2", "black", [] ],
+    [ "bz1:2", "esp:19", "orange", [] ]
+  ],
+  "dependencies": {}
+}

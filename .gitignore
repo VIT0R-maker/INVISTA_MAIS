@@ -4,3 +4,6 @@ node_modules/
 !.env.example
 .vercel/
 test-results/
+
+# Segredos do firmware (token do Blynk e chave do dispositivo)
+iot/firmware/**/secrets.h
