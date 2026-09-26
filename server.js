@@ -6,6 +6,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import { createMentorHandler, reservarUso } from './lib/mentor.js';
+import { criarContextoMentor } from './lib/mentor-context.js';
 
 import { analisarAtivo, validarAtivo } from './lib/analysis.js';
 import { perfisAcoesDisponiveis, perfisFiiDisponiveis } from './lib/classify.js';
@@ -88,7 +89,8 @@ app.post('/api/acoes', async (req, res) => {
   try {
     const input = validarAtivo(req.body);
     ticker = input.ticker;
-    res.json(await analisarAtivo({ ...input, tipo: 'acoes' }));
+    const indicadores = await analisarAtivo({ ...input, tipo: 'acoes' });
+    res.json({ ...indicadores, mentorContext: criarContextoMentor(indicadores, 'acoes', process.env.GEMINI_API_KEY) });
   } catch (error) {
     if (error.status === 400) return res.status(400).json({ error: error.message });
     tratarErro(res, error, ticker || '', 'Ação');
@@ -100,7 +102,8 @@ app.post('/api/fiis', async (req, res) => {
   try {
     const input = validarAtivo(req.body);
     ticker = input.ticker;
-    res.json(await analisarAtivo({ ...input, tipo: 'fiis' }));
+    const indicadores = await analisarAtivo({ ...input, tipo: 'fiis' });
+    res.json({ ...indicadores, mentorContext: criarContextoMentor(indicadores, 'fiis', process.env.GEMINI_API_KEY) });
   } catch (error) {
     if (error.status === 400) return res.status(400).json({ error: error.message });
     tratarErro(res, error, ticker || '', 'FII');

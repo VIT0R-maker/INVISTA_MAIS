@@ -20,25 +20,37 @@ function setup(t, fetchImpl) {
   return { root, mentor, el, submit };
 }
 
-test('visitantes não chamam IA; login gera resumo automaticamente com ticker e perfil', async t => {
+test('Mentor aparece somente após busca, depois dos cards, e consulta apenas por solicitação', async t => {
   const requests = [];
-  const { mentor, el } = setup(t, async (_url, options) => { requests.push(JSON.parse(options.body)); return response('Resumo'); });
-  mentor.setAsset({ ticker: 'PETR4', tipo: 'acoes' }, 'conservador');
+  const { root, mentor, el } = setup(t, async (_url, options) => { requests.push(JSON.parse(options.body)); return response('Resumo'); });
+  assert.equal(root.hidden, true);
+  assert.ok(document.getElementById('resultContainer').compareDocumentPosition(root) & 4);
+  const snapshot = { payload: 'snapshot-data', signature: 'signature' };
+  mentor.setAsset({ ticker: 'PETR4', tipo: 'acoes', snapshot }, 'conservador');
+  assert.equal(root.hidden, false);
   await settle();
   assert.equal(requests.length, 0);
   assert.equal(el('question').disabled, true);
   mentor.setUser({ uid: 'u1' });
   await settle();
+  assert.equal(requests.length, 0);
+  el('summary').click();
+  await settle();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].modo, 'resumo');
   assert.equal(requests[0].perfil, 'conservador');
+  assert.deepEqual(requests[0].snapshot, snapshot);
   assert.equal(el('messages').textContent.includes('Resumo'), true);
+  mentor.setAsset(null);
+  assert.equal(root.hidden, true);
+  assert.equal(el('messages').children.length, 0);
 });
 
 test('resposta e pergunta com HTML são texto, histórico acompanha a conversa', async t => {
   const requests = [];
   const { mentor, el, submit } = setup(t, async (_url, options) => { requests.push(JSON.parse(options.body)); return response('<img src=x onerror=alert(1)>'); });
   mentor.setUser({ uid: 'u1' });
+  mentor.setAsset({ ticker: 'PETR4', tipo: 'acoes' });
   submit('<script>alert(1)</script>');
   await settle();
   assert.equal(el('messages').querySelector('script, img'), null);
@@ -50,7 +62,7 @@ test('resposta e pergunta com HTML são texto, histórico acompanha a conversa',
   submit('O que é reserva de emergência?');
   await settle();
   assert.equal(requests[2].historico.length, 0);
-  assert.equal(requests[2].ticker, undefined);
+  assert.equal(requests[2].ticker, 'PETR4');
 });
 
 test('troca de ativo descarta resposta atrasada, mesmo se fetch ignorar abort', async t => {
@@ -61,8 +73,10 @@ test('troca de ativo descarta resposta atrasada, mesmo se fetch ignorar abort', 
   });
   mentor.setUser({ uid: 'u1' });
   mentor.setAsset({ ticker: 'PETR4', tipo: 'acoes' });
+  el('summary').click();
   await settle();
   mentor.setAsset({ ticker: 'MXRF11', tipo: 'fiis' });
+  el('summary').click();
   await settle();
   resolveOld(response('Resposta antiga de PETR4'));
   await settle();
@@ -78,6 +92,7 @@ test('falha libera controles e permite repetir sem duplicar histórico', async t
     return fail ? response('Limite temporário', 429) : response('Explicação');
   });
   mentor.setUser({ uid: 'u1' });
+  mentor.setAsset({ ticker: 'PETR4', tipo: 'acoes' });
   submit('O que é DY?');
   await settle();
   assert.equal(el('retry').hidden, false);
