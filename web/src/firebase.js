@@ -4,12 +4,12 @@ import { connectAuthEmulator, getAuth } from 'firebase/auth';
 const emulador = import.meta.env.VITE_FIREBASE_EMULADOR === 'true';
 
 const app = initializeApp({
-  apiKey: 'AIzaSyC4ivuaeCkRzlnMf1wj8NMAYgGMvD_jLzQ',
-  authDomain: 'invista-ai-63bba.firebaseapp.com',
-  projectId: emulador ? 'demo-invista' : 'invista-ai-63bba',
-  storageBucket: 'invista-ai-63bba.firebasestorage.app',
-  messagingSenderId: '941158151001',
-  appId: '1:941158151001:web:127d37db6b903b81585248',
+  apiKey: 'AIzaSyB_Y15KWLEeyMcNNQJUFCKzp7ktdvEVeVk',
+  authDomain: 'invista-mais-31a71.firebaseapp.com',
+  projectId: emulador ? 'demo-invista' : 'invista-mais-31a71',
+  storageBucket: 'invista-mais-31a71.firebasestorage.app',
+  messagingSenderId: '74617818857',
+  appId: '1:74617818857:web:7d4a3e3cd684315f736a78',
 });
 
 export const auth = getAuth(app);

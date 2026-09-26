@@ -9,7 +9,7 @@ info:
     O ESP32 autentica com a chave do dispositivo, gerada no cadastro (`Authorization: Bearer <chave>`).
     Valores em dinheiro vão em centavos (inteiros). Datas em ISO 8601; filtros de dia usam o fuso de Brasília.
 servers:
-  - url: https://invistaai-ochre.vercel.app
+  - url: https://invista-mais-api.vercel.app
   - url: http://localhost:3000
 tags:
   - name: Ativos

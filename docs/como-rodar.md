@@ -81,7 +81,7 @@ EXPO_PUBLIC_FIREBASE_EMULADOR=192.168.0.10:9099
 
 3. Com os emuladores e a API rodando, execute `npm run mobile` e leia o QR code com o Expo Go. O celular precisa estar no mesmo Wi-Fi. Se o Windows perguntar sobre o firewall, permita o acesso.
 
-Para usar o app com o servidor publicado, deixe só `EXPO_PUBLIC_API_URL=https://invistaai-ochre.vercel.app` e remova a linha do emulador.
+Para usar o app com o servidor publicado, deixe só `EXPO_PUBLIC_API_URL=https://invista-mais-api.vercel.app` e remova a linha do emulador.
 
 Sem celular, `npm --prefix mobile run web` abre o app no navegador.
 

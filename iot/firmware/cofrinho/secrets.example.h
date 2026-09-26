@@ -8,6 +8,6 @@
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASS ""
 
-#define API_URL "https://invistaai-ochre.vercel.app"
+#define API_URL "https://invista-mais-api.vercel.app"
 #define DISPOSITIVO_ID ""
 #define CHAVE_DISPOSITIVO ""
