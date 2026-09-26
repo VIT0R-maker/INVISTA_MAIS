@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { createMentorHandler, gerarResposta, reservarUso, validarPergunta, MentorError } from '../lib/mentor.js';
 import { analisarAcao, analisarFii, validarAtivo } from '../lib/analysis.js';
+import { criarContextoMentor, lerContextoMentor } from '../lib/mentor-context.js';
 
 const question = { modo: 'pergunta', pergunta: 'O que é P/VP?' };
 const summary = { modo: 'resumo', ticker: 'PETR4', tipo: 'acoes', perfil: 'moderado' };
@@ -56,18 +57,16 @@ test('pensamento interno do modelo não aparece na resposta', async () => {
   assert.equal(result, 'Resposta pública');
 });
 
-test('endpoint autentica, consulta dados no servidor e mantém falhas isoladas', async t => {
+test('endpoint autentica e usa exatamente o contexto assinado da busca', async t => {
   let calls = 0;
   let quota = 0;
   let received;
   const env = { GEMINI_API_KEY: 'test-secret' };
-  let analyzeError = false;
   const app = express();
   app.use(express.json());
   app.post('/api/mentor', createMentorHandler({ env,
     verifyToken: async token => { if (token !== 'valid') throw new Error('bad'); return { uid: 'u1' }; },
     consumeQuota: async () => { quota++; },
-    analyze: async input => { if (analyzeError) throw new Error('upstream secret'); return { ticker: input.ticker, cotacao: { value: 'R$ 30,00' } }; },
     generate: async args => { calls++; received = args; return 'Resposta'; },
   }));
   const server = app.listen(0);
@@ -79,22 +78,45 @@ test('endpoint autentica, consulta dados no servidor e mantém falhas isoladas',
   assert.equal((await post(question, 'bad')).status, 401);
   assert.equal(calls, 0);
   assert.equal(quota, 0);
-  const result = await post({ ...summary, contexto: { cotacao: 'forged' } });
+  const indicadores = analisarAcao('PETR4', 'moderado', { cotacao: 30, lpa: 4, vpa: 25, dividendyield: 8, pl: 7.5 }, 10.75);
+  const snapshot = criarContextoMentor(indicadores, 'acoes', env.GEMINI_API_KEY);
+  const result = await post({ ...summary, snapshot, contexto: { cotacao: 'forged' } });
   assert.equal(result.status, 200);
   assert.equal(result.headers.get('cache-control'), 'no-store');
   assert.equal(received.contexto.indicadores.cotacao.value, 'R$ 30,00');
+  assert.deepEqual(received.contexto.indicadores, indicadores);
   assert.equal((await result.json()).contexto.ticker, 'PETR4');
-  await post({ ...summary, tipo: 'fiis', ticker: 'MXRF11' });
+  const fii = analisarFii('MXRF11', 'moderado', { cotacao: 10, ultimorendimento: 0.1, pvp: 1 }, { segmento: 'Papel' });
+  await post({ ...summary, tipo: 'fiis', ticker: 'MXRF11', snapshot: criarContextoMentor(fii, 'fiis', env.GEMINI_API_KEY) });
   assert.equal(received.contexto.tipo, 'fiis');
+  assert.deepEqual(received.contexto.indicadores, fii);
   await post(question);
   assert.equal(received.contexto, null);
   assert.equal((await post({ ...question, pergunta: '' })).status, 400);
-  analyzeError = true;
   const before = calls;
-  assert.equal((await post(summary)).status, 502);
+  const quotaBefore = quota;
+  assert.equal((await post(summary)).status, 400);
+  assert.equal((await post({ ...summary, snapshot: { ...snapshot, payload: snapshot.payload + 'x' } })).status, 400);
   assert.equal(calls, before);
+  assert.equal(quota, quotaBefore);
   delete env.GEMINI_API_KEY;
   assert.equal((await post(question)).status, 503);
+});
+
+test('contexto recusa dados alterados, chave diferente, outro ativo/perfil e expiração', () => {
+  const now = Date.now();
+  const ativo = { ticker: 'PETR4', perfil: 'moderado', tipo: 'acoes' };
+  const indicadores = analisarAcao('PETR4', 'moderado', { cotacao: 30 }, 10.75);
+  const snapshot = criarContextoMentor(indicadores, 'acoes', 'secret-test', now);
+  assert.deepEqual(lerContextoMentor(snapshot, ativo, 'secret-test', now).indicadores, indicadores);
+  for (const [data, selected, key, time] of [
+    [{ ...snapshot, signature: 'x'.repeat(43) }, ativo, 'secret-test', now],
+    [snapshot, { ...ativo, ticker: 'VALE3' }, 'secret-test', now],
+    [snapshot, { ...ativo, perfil: 'conservador' }, 'secret-test', now],
+    [snapshot, ativo, 'rotated-key', now],
+    [snapshot, ativo, 'secret-test', now + 1800000],
+  ]) assert.throws(() => lerContextoMentor(data, selected, key, time), error => error.status === 400);
+  assert.equal(criarContextoMentor(indicadores, 'acoes', ''), null);
 });
 
 test('cota é persistente, limita frequência e renova no próximo dia UTC', async () => {

@@ -16,11 +16,10 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
   let pending = null;
   let revision = 0;
   let lastRequest = null;
-  let summaryDone = false;
 
   function controls(busy = false) {
-    form.querySelectorAll('button, textarea').forEach(el => { el.disabled = busy || !signedIn; });
-    root.querySelectorAll('[data-question]').forEach(el => { el.disabled = busy || !signedIn; });
+    form.querySelectorAll('button, textarea').forEach(el => { el.disabled = busy || !signedIn || !asset; });
+    root.querySelectorAll('[data-question]').forEach(el => { el.disabled = busy || !signedIn || !asset; });
     summary.disabled = busy || !signedIn || !asset;
     retry.disabled = busy || !signedIn;
     login.hidden = signedIn;
@@ -46,18 +45,18 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
     pending = null;
     history = [];
     lastRequest = null;
-    summaryDone = false;
     messages.replaceChildren();
     byId('mentor-source').replaceChildren();
     retry.hidden = true;
     input.value = '';
-    contextLabel.textContent = asset ? `${asset.ticker} · ${asset.tipo === 'fiis' ? 'FII' : 'Ação'} · Perfil ${perfil}` : 'Conversa sobre finanças';
-    status.textContent = signedIn ? 'Tire uma dúvida ou escolha uma sugestão abaixo.' : 'Entre na sua conta para usar o Mentor IA.';
+    root.hidden = !asset;
+    contextLabel.textContent = asset ? `${asset.ticker} · ${asset.tipo === 'fiis' ? 'FII' : 'Ação'} · Perfil ${perfil}` : '';
+    status.textContent = signedIn ? 'Pergunte sobre os indicadores desta busca ou peça um resumo do ativo.' : 'Entre na sua conta para conversar sobre os indicadores deste ativo.';
     controls();
   }
 
   async function request(modo, pergunta = '') {
-    if (!signedIn || pending || (modo === 'resumo' && !asset)) return;
+    if (!signedIn || pending || !asset) return;
     const currentRevision = revision;
     const controller = new AbortController();
     pending = controller;
@@ -79,7 +78,9 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
       });
       const data = await response.json().catch(() => ({}));
       if (currentRevision !== revision) return;
-      if (!response.ok) throw new Error(data.error || 'O Mentor IA está indisponível. Tente novamente.');
+      if (!response.ok) throw new Error(data.error || (response.status === 404
+        ? 'O servidor ainda não recebeu a atualização do Mentor IA. Tente novamente após a publicação.'
+        : 'O Mentor IA está indisponível. Tente novamente.'));
       if (typeof data.texto !== 'string' || !data.texto.trim()) throw new Error('A IA retornou uma resposta vazia. Tente novamente.');
       message('model', data.texto);
       if (modo === 'pergunta') {
@@ -87,7 +88,6 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
         history = history.slice(-8);
         input.value = '';
       } else {
-        summaryDone = true;
         history = [{ role: 'user', text: `Resuma os indicadores de ${asset.ticker}.` }, { role: 'model', text: data.texto }];
       }
       const source = byId('mentor-source');
@@ -128,7 +128,7 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
   }));
   summary.addEventListener('click', () => void request('resumo'));
   retry.addEventListener('click', () => { if (lastRequest) void request(lastRequest.modo, lastRequest.pergunta); });
-  byId('mentor-clear').addEventListener('click', () => { asset = null; reset(); });
+  byId('mentor-clear').addEventListener('click', reset);
 
   reset();
   return {
@@ -137,13 +137,11 @@ export function createMentor({ root, apiBase, getToken, fetchImpl = fetch }) {
       userId = user?.uid ?? null;
       signedIn = Boolean(user);
       if (changed) reset(); else controls(Boolean(pending));
-      if (signedIn && asset && !summaryDone && !pending) void request('resumo');
     },
     setAsset(nextAsset, nextPerfil = perfil) {
       asset = nextAsset;
       perfil = nextPerfil;
       reset();
-      if (asset && signedIn) void request('resumo');
     },
   };
 }

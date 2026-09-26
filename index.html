@@ -149,14 +149,18 @@
             <button id="searchBtn" onclick="buscar()">Pesquisar</button>
         </div>
 
-        <section class="mentor" id="mentor" aria-labelledby="mentor-title">
+        <div id="resultContainer">
+            <div class="message">Pronto para buscar Ações.</div>
+        </div>
+
+        <section class="mentor" id="mentor" aria-labelledby="mentor-title" hidden>
             <div class="mentor-heading">
                 <div>
-                    <span class="mentor-eyebrow">ENTENDA SEUS INVESTIMENTOS</span>
+                    <span class="mentor-eyebrow">APROFUNDE SUA ANÁLISE</span>
                     <h2 id="mentor-title">Mentor IA <span aria-hidden="true">✦</span></h2>
-                    <p class="mentor-context" id="mentor-context">Conversa sobre finanças</p>
+                    <p class="mentor-context" id="mentor-context"></p>
                 </div>
-                <button type="button" id="mentor-clear">Nova conversa sem ativo</button>
+                <button type="button" id="mentor-clear">Limpar conversa</button>
             </div>
             <p class="mentor-status" id="mentor-status" role="status" aria-live="polite">Entre na sua conta para usar o Mentor IA.</p>
             <a class="mentor-login" id="mentor-login" href="login.html">Entrar para conversar</a>
@@ -168,8 +172,8 @@
             <p class="mentor-source" id="mentor-source"></p>
             <div class="mentor-suggestions" aria-label="Sugestões de perguntas">
                 <button type="button" data-question="Como interpretar P/VP e dividend yield em conjunto?" disabled>Entender indicadores</button>
-                <button type="button" data-question="Quais riscos devo observar ao analisar um ativo como este? Se não houver ativo selecionado, explique os principais riscos de ações e FIIs." disabled>Conhecer os riscos</button>
-                <button type="button" data-question="Como diversificar investimentos e qual o papel da reserva de emergência?" disabled>Aprender a diversificar</button>
+                <button type="button" data-question="Quais riscos e pontos de atenção aparecem nos indicadores deste ativo?" disabled>Conhecer os riscos</button>
+                <button type="button" data-question="Como interpretar os valores justos, preços teto ou efeito bola de neve calculados nesta análise?" disabled>Entender os cálculos</button>
             </div>
             <form id="mentor-form">
                 <label for="mentor-question">Sua dúvida financeira</label>
@@ -181,9 +185,6 @@
             <p class="mentor-note">Conteúdo educativo gerado por Gemini; pode conter erros e não é recomendação de investimento. Até 30 consultas por dia. Perguntas e indicadores são enviados ao Google; não inclua dados pessoais.</p>
         </section>
 
-        <div id="resultContainer">
-            <div class="message">Pronto para buscar Ações.</div>
-        </div>
     </div>
 
     <!-- Firebase + Script da Aplicação -->
@@ -685,7 +686,7 @@
                         </div>
                     `;
                 }
-                mentor.setAsset({ ticker: data.ticker, tipo: currentMode }, currentPerfil);
+                mentor.setAsset({ ticker: data.ticker, tipo: currentMode, snapshot: data.mentorContext }, currentPerfil);
             } catch (error) {
                 if (requestRevision !== searchRevision) return;
                 container.innerHTML = `<div class="message" style="color: var(--bad);">Erro de conexão com o Motor Quântico.</div>`;
