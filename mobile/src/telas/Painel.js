@@ -171,7 +171,7 @@ export default function Painel({ dispositivo }) {
           <>
             <Text style={estilos.texto}>Meta de {centavos(d.metaCentavos)}</Text>
             <Progresso atual={d.saldoCentavos} total={d.metaCentavos} />
-            {dias !== null && <Text style={estilos.suave}>{dias === 0 ? 'Meta atingida!' : `No ritmo atual, faltam cerca de ${dias} dias.`}</Text>}
+            {dias !== null && <Text style={estilos.suave}>{dias === 0 ? 'Meta atingida!' : `No ritmo atual, faltam cerca de ${numero(dias, 0)} dias.`}</Text>}
           </>
         ) : (
           <Text style={estilos.suave}>Defina uma meta pelo site.</Text>
