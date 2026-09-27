@@ -53,7 +53,7 @@
                 </div>
                 <div class="input-group">
                     <label>Senha</label>
-                    <input type="password" id="senha" placeholder="Crie uma senha (mín. 6 caracteres)" required minlength="6">
+                    <input type="password" id="senha" placeholder="Crie uma senha (mín. 8 caracteres)" required minlength="8">
                 </div>
                 
                 <button type="submit" id="submitBtn" class="btn-submit">Cadastrar</button>
@@ -71,12 +71,12 @@
         import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyC4ivuaeCkRzlnMf1wj8NMAYgGMvD_jLzQ",
-            authDomain: "invista-ai-63bba.firebaseapp.com",
-            projectId: "invista-ai-63bba",
-            storageBucket: "invista-ai-63bba.firebasestorage.app",
-            messagingSenderId: "941158151001",
-            appId: "1:941158151001:web:127d37db6b903b81585248",
+            apiKey: "AIzaSyB_Y15KWLEeyMcNNQJUFCKzp7ktdvEVeVk",
+            authDomain: "invista-mais-31a71.firebaseapp.com",
+            projectId: "invista-mais-31a71",
+            storageBucket: "invista-mais-31a71.firebasestorage.app",
+            messagingSenderId: "74617818857",
+            appId: "1:74617818857:web:7d4a3e3cd684315f736a78",
             measurementId: "G-K3N499C5X9"
         };
 
@@ -104,7 +104,7 @@
                 if (error.code === 'auth/email-already-in-use') {
                     errorDiv.innerText = 'Este e-mail já está cadastrado.';
                 } else if (error.code === 'auth/weak-password') {
-                    errorDiv.innerText = 'A senha deve ter pelo menos 6 caracteres.';
+                    errorDiv.innerText = 'A senha deve ter pelo menos 8 caracteres.';
                 } else {
                     errorDiv.innerText = 'Erro ao criar conta. Tente novamente.';
                     console.error(error);

@@ -197,12 +197,12 @@
 
         // SUA CHAVE DA API AQUI
         const firebaseConfig = {
-            apiKey: "AIzaSyC4ivuaeCkRzlnMf1wj8NMAYgGMvD_jLzQ",
-            authDomain: "invista-ai-63bba.firebaseapp.com",
-            projectId: "invista-ai-63bba",
-            storageBucket: "invista-ai-63bba.firebasestorage.app",
-            messagingSenderId: "941158151001",
-            appId: "1:941158151001:web:127d37db6b903b81585248",
+            apiKey: "AIzaSyB_Y15KWLEeyMcNNQJUFCKzp7ktdvEVeVk",
+            authDomain: "invista-mais-31a71.firebaseapp.com",
+            projectId: "invista-mais-31a71",
+            storageBucket: "invista-mais-31a71.firebasestorage.app",
+            messagingSenderId: "74617818857",
+            appId: "1:74617818857:web:7d4a3e3cd684315f736a78",
             measurementId: "G-K3N499C5X9"
         };
 
@@ -427,11 +427,6 @@
                 userFavorites.push(ticker);
                 await setDoc(docRef, { favoritos: arrayUnion(ticker) }, { merge: true });
             }
-
-            // 2. A FECHADURA DE IOT: Só atualiza a placa física se o usuário for o dono dela!
-            if (currentUser.email === "vitorfaccini93@gmail.com") {
-                sincronizarComNuvem(userFavorites);
-            }
         };
 
         function abrirFavoritos() {
@@ -477,13 +472,8 @@
             // 2. Remove do banco de dados do usuário logado
             const docRef = doc(db, "users", currentUser.uid);
             await setDoc(docRef, { favoritos: arrayRemove(ticker) }, { merge: true });
-
-            // 3. A FECHADURA DE IOT: Se for o dono do hardware, remove do banco do ESP32 também
-            if (currentUser.email === "vitorfaccini93@gmail.com") {
-                sincronizarComNuvem(userFavorites);
-            }
             
-            // 4. Recarrega a tela de favoritos para o botão sumir
+            // 3. Recarrega a tela de favoritos para o botão sumir
             abrirFavoritos();
         };
 
@@ -699,21 +689,6 @@
             if (e.key === 'Enter') window.buscar();
         });
 
-        async function sincronizarComNuvem(listaAtualizada) {
-  try {
-    await fetch(`${API_BASE_URL}/api/favoritos/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        deviceId: "esp32-vitor-01", // Amarramos a interface web ao seu hardware
-        favoritos: listaAtualizada 
-      })
-    });
-    console.log("Sincronização com o Firebase concluída!");
-  } catch (error) {
-    console.error("Erro na comunicação com a nuvem:", error);
-  }
-}
     </script>
 </body>
 </html>

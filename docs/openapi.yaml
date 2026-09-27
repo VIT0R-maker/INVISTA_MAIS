@@ -1,0 +1,499 @@
+openapi: 3.1.0
+info:
+  title: API Invista+
+  version: 3.0.0
+  license: { name: Uso acadêmico na Fatec Franca }
+  description: |
+    API REST do Invista+: scanner de ativos da B3, favoritos, Mentor IA e o Cofrinho IoT (ESP32 + Blynk).
+    Usuários autenticam com o ID token do Firebase (`Authorization: Bearer <token>`).
+    O ESP32 autentica com a chave do dispositivo, gerada no cadastro (`Authorization: Bearer <chave>`).
+    Valores em dinheiro vão em centavos (inteiros). Datas em ISO 8601; filtros de dia usam o fuso de Brasília.
+servers:
+  - url: https://invista-mais-api.vercel.app
+  - url: http://localhost:3000
+tags:
+  - name: Ativos
+    description: Indicadores e valuation de ações e FIIs (dados públicos, sem login).
+  - name: Favoritos
+    description: Carteira de acompanhamento do usuário logado.
+  - name: Dispositivos
+    description: Cadastro, consulta e controle dos cofrinhos pelo web e pelo app.
+  - name: ESP32
+    description: Rotas chamadas pelo firmware do cofrinho.
+  - name: Análises
+    description: Estatística dos depósitos e simulação educativa de rendimento.
+  - name: Mentor
+    description: Assistente de educação financeira (Gemini).
+
+paths:
+  /api/health:
+    get:
+      operationId: verificarSaude
+      security: []
+      tags: [Ativos]
+      summary: Verifica se a API está no ar
+      responses:
+        '200': { description: API disponível }
+
+  /api/perfis:
+    get:
+      operationId: listarPerfis
+      security: []
+      tags: [Ativos]
+      summary: Lista os perfis de investidor aceitos
+      responses:
+        '200': { description: Perfis para ações e FIIs }
+
+  /api/ativos/{tipo}/{ticker}:
+    get:
+      operationId: consultarAtivo
+      security: []
+      tags: [Ativos]
+      summary: Indicadores e valuation de uma ação ou FII
+      parameters:
+        - { name: tipo, in: path, required: true, schema: { type: string, enum: [acoes, fiis] } }
+        - { name: ticker, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z]{4}[0-9]{1,2}$' }, example: MXRF11 }
+        - { name: perfil, in: query, schema: { type: string, enum: [conservador, moderado, arrojado], default: moderado } }
+      responses:
+        '200': { description: Indicadores classificados pelo perfil (cada campo tem value e class) }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+        '502': { description: Fonte de indicadores indisponível, content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
+
+  /api/acoes:
+    post:
+      operationId: consultarAcaoLegado
+      security: []
+      tags: [Ativos]
+      deprecated: true
+      summary: Versão antiga de GET /api/ativos/acoes/{ticker} (mantida para a página atual)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConsultaAtivo' } } }
+      responses:
+        '200': { description: Indicadores da ação }
+
+  /api/fiis:
+    post:
+      operationId: consultarFiiLegado
+      security: []
+      tags: [Ativos]
+      deprecated: true
+      summary: Versão antiga de GET /api/ativos/fiis/{ticker} (mantida para a página atual)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConsultaAtivo' } } }
+      responses:
+        '200': { description: Indicadores do FII }
+
+  /api/mentor:
+    post:
+      operationId: perguntarMentor
+      tags: [Mentor]
+      summary: Pergunta ao Mentor IA (Gemini); limite de 30 por conta por dia
+      security: [{ firebase: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modo]
+              properties:
+                modo: { type: string, enum: [resumo, pergunta] }
+                pergunta: { type: string, maxLength: 1500 }
+                ticker: { type: string }
+                tipo: { type: string, enum: [acoes, fiis] }
+                perfil: { type: string, enum: [conservador, moderado, arrojado] }
+                snapshot: { type: object, description: mentorContext devolvido pela consulta do ativo }
+                historico: { type: array, maxItems: 8, items: { type: object } }
+      responses:
+        '200': { description: Resposta do Mentor }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+        '429': { $ref: '#/components/responses/Limite' }
+
+  /api/usuarios/me/favoritos:
+    get:
+      operationId: listarFavoritos
+      tags: [Favoritos]
+      summary: Lista os favoritos do usuário logado
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Favoritos, content: { application/json: { schema: { $ref: '#/components/schemas/Favoritos' } } } }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+
+  /api/usuarios/me/favoritos/{ticker}:
+    parameters:
+      - { name: ticker, in: path, required: true, schema: { type: string }, example: PETR4 }
+    put:
+      operationId: adicionarFavorito
+      tags: [Favoritos]
+      summary: Adiciona um ticker aos favoritos (idempotente; máximo de 30)
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Lista atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/Favoritos' } } } }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+        '409': { description: Limite de favoritos atingido }
+    delete:
+      operationId: removerFavorito
+      tags: [Favoritos]
+      summary: Remove um ticker dos favoritos
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Lista atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/Favoritos' } } } }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+
+  /api/dispositivos:
+    get:
+      operationId: listarDispositivos
+      tags: [Dispositivos]
+      summary: Lista os cofrinhos do usuário
+      security: [{ firebase: [] }]
+      responses:
+        '200':
+          description: Dispositivos
+          content: { application/json: { schema: { type: object, properties: { dispositivos: { type: array, items: { $ref: '#/components/schemas/Dispositivo' } } } } } }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+    post:
+      operationId: cadastrarDispositivo
+      tags: [Dispositivos]
+      summary: Cadastra um cofrinho e gera a chave do ESP32 (mostrada uma única vez)
+      security: [{ firebase: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [apelido, blynkToken]
+              properties:
+                apelido: { type: string, maxLength: 40, description: 'Use um apelido, não o nome completo de uma criança.' }
+                blynkToken: { type: string, description: Auth token do dispositivo no Blynk. Nunca é devolvido pela API. }
+                metaCentavos: { type: integer, minimum: 100 }
+      responses:
+        '201':
+          description: Cofrinho criado
+          headers: { Location: { schema: { type: string } } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Dispositivo'
+                  - type: object
+                    properties: { chaveDispositivo: { type: string }, aviso: { type: string } }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+        '409': { description: Limite de 5 dispositivos por conta }
+
+  /api/dispositivos/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      operationId: obterDispositivo
+      tags: [Dispositivos]
+      summary: Detalhes do cofrinho
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Cofrinho, content: { application/json: { schema: { $ref: '#/components/schemas/Dispositivo' } } } }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    patch:
+      operationId: alterarDispositivo
+      tags: [Dispositivos]
+      summary: Altera apelido, meta ou token do Blynk (a meta também vai para o display do ESP32)
+      security: [{ firebase: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                apelido: { type: string, maxLength: 40 }
+                blynkToken: { type: string }
+                metaCentavos: { type: [integer, 'null'], minimum: 100 }
+      responses:
+        '200': { description: Cofrinho atualizado, content: { application/json: { schema: { $ref: '#/components/schemas/Dispositivo' } } } }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    delete:
+      operationId: excluirDispositivo
+      tags: [Dispositivos]
+      summary: Exclui o cofrinho e todo o histórico
+      security: [{ firebase: [] }]
+      responses:
+        '204': { description: Excluído }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/chave:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      operationId: gerarNovaChave
+      tags: [Dispositivos]
+      summary: Gera uma nova chave para o ESP32 (a anterior deixa de valer)
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Nova chave, content: { application/json: { schema: { type: object, properties: { chaveDispositivo: { type: string } } } } } }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/depositos:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      operationId: registrarDeposito
+      tags: [ESP32]
+      summary: Registra um depósito (idempotente pelo id enviado pelo ESP32)
+      security: [{ chaveDispositivo: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id, valorCentavos, forma]
+              properties:
+                id: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$', example: a1b2c3-7-42 }
+                valorCentavos: { type: integer, minimum: 1, maximum: 100000 }
+                forma: { type: string, enum: [moeda, cedula] }
+                pesoGramas: { type: [number, 'null'], description: Peso total medido pela célula de carga após o depósito }
+      responses:
+        '201': { description: Depósito criado, content: { application/json: { schema: { $ref: '#/components/schemas/RespostaDeposito' } } } }
+        '200': { description: Reenvio de um depósito já registrado, content: { application/json: { schema: { $ref: '#/components/schemas/RespostaDeposito' } } } }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { description: Chave do dispositivo inválida }
+    get:
+      operationId: listarDepositos
+      tags: [Dispositivos]
+      summary: Lista depósitos do período (padrão de 90 dias)
+      security: [{ firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/de'
+        - $ref: '#/components/parameters/ate'
+        - $ref: '#/components/parameters/limite'
+      responses:
+        '200':
+          description: Depósitos do mais recente para o mais antigo
+          content: { application/json: { schema: { type: object, properties: { depositos: { type: array, items: { $ref: '#/components/schemas/Deposito' } } } } } }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/eventos:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      operationId: registrarEvento
+      tags: [ESP32]
+      summary: Registra abertura/fechamento da tampa ou tentativa de violação
+      security: [{ chaveDispositivo: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id, tipo]
+              properties:
+                id: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$' }
+                tipo: { type: string, enum: [tampa_aberta, tampa_fechada, violacao] }
+      responses:
+        '201': { description: Evento criado }
+        '200': { description: Reenvio de evento já registrado }
+        '401': { description: Chave do dispositivo inválida }
+    get:
+      operationId: listarEventos
+      tags: [Dispositivos]
+      summary: Lista eventos do período
+      security: [{ firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/de'
+        - $ref: '#/components/parameters/ate'
+        - $ref: '#/components/parameters/limite'
+      responses:
+        '200': { description: Eventos }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/relatorios:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      operationId: enviarRelatorio
+      tags: [ESP32]
+      summary: Envia por e-mail o resumo do cofrinho e dos favoritos (botão pressionado por 2 s)
+      security: [{ chaveDispositivo: [] }]
+      responses:
+        '202': { description: Relatório enviado }
+        '401': { description: Chave do dispositivo inválida }
+        '409': { description: A conta não tem e-mail verificado }
+        '429': { description: Um relatório foi enviado há menos de 10 minutos }
+        '503': { description: E-mail não configurado no servidor }
+
+  /api/dispositivos/{id}/estatisticas:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      operationId: obterEstatisticas
+      tags: [Análises]
+      summary: Estatística descritiva, probabilidades, regressões e inferência sobre os depósitos
+      security: [{ firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/de'
+        - $ref: '#/components/parameters/ate'
+        - { name: dataMeta, in: query, schema: { type: string, format: date }, description: Data para calcular a probabilidade de atingir a meta }
+      responses:
+        '200': { description: Análise, content: { application/json: { schema: { $ref: '#/components/schemas/Estatisticas' } } } }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/simulacao:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      operationId: simularRendimento
+      tags: [Análises]
+      summary: Simulação educativa com saldo parado, poupança e título Selic (valores brutos)
+      security: [{ firebase: [] }]
+      parameters:
+        - { name: meses, in: query, schema: { type: integer, minimum: 1, maximum: 120, default: 12 } }
+        - { name: aporteMensalCentavos, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200': { description: Série mês a mês }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+
+  /api/dispositivos/{id}/estado:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      operationId: obterEstado
+      tags: [Dispositivos]
+      summary: Estado ao vivo lido do Blynk (sensores, atuadores e se o ESP32 está online)
+      security: [{ firebase: [] }]
+      responses:
+        '200': { description: Estado, content: { application/json: { schema: { $ref: '#/components/schemas/Estado' } } } }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+        '502': { description: Blynk recusou a consulta }
+        '504': { description: Blynk não respondeu }
+
+  /api/dispositivos/{id}/atuadores:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      operationId: acionarAtuadores
+      tags: [Dispositivos]
+      summary: Aciona trava (servo), LED RGB e buzzer via Blynk
+      security: [{ firebase: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                trava: { type: boolean }
+                cor: { type: string, enum: [desligado, verde, amarelo, vermelho, azul] }
+                brilho: { type: integer, minimum: 0, maximum: 100 }
+                buzzer: { type: boolean, const: true }
+      responses:
+        '200': { description: Comandos enviados ao Blynk }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+        '502': { description: Blynk recusou o comando }
+
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+    chaveDispositivo:
+      type: http
+      scheme: bearer
+      description: Chave do ESP32 gerada em POST /api/dispositivos
+
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: string } }
+    de: { name: de, in: query, schema: { type: string, format: date }, example: '2026-10-01' }
+    ate: { name: ate, in: query, schema: { type: string, format: date }, example: '2026-10-31' }
+    limite: { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+
+  responses:
+    Invalido:
+      description: Dados inválidos ou campo não permitido
+      content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } }
+    NaoAutenticado:
+      description: Token ausente, expirado ou de conta anônima
+      content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } }
+    NaoEncontrado:
+      description: Não existe ou não pertence ao usuário logado
+      content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } }
+    Limite:
+      description: Limite de requisições atingido
+      content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } }
+
+  schemas:
+    Erro:
+      type: object
+      properties: { error: { type: string } }
+    ConsultaAtivo:
+      type: object
+      required: [ticker]
+      properties:
+        ticker: { type: string }
+        perfil: { type: string, enum: [conservador, moderado, arrojado] }
+    Favoritos:
+      type: object
+      properties: { favoritos: { type: array, items: { type: string } } }
+    Dispositivo:
+      type: object
+      properties:
+        id: { type: string }
+        apelido: { type: string }
+        metaCentavos: { type: [integer, 'null'] }
+        saldoCentavos: { type: integer }
+        criadoEm: { type: string, format: date-time }
+        ultimoDepositoEm: { type: [string, 'null'], format: date-time }
+    Deposito:
+      type: object
+      properties:
+        id: { type: string }
+        valorCentavos: { type: integer }
+        forma: { type: string, enum: [moeda, cedula] }
+        pesoGramas: { type: [number, 'null'] }
+        registradoEm: { type: string, format: date-time }
+        origem: { type: string, enum: [sensor, simulado] }
+    RespostaDeposito:
+      type: object
+      properties:
+        id: { type: string }
+        duplicado: { type: boolean }
+        saldoCentavos: { type: integer }
+    Estado:
+      type: object
+      properties:
+        online: { type: boolean }
+        sensores:
+          type: object
+          properties:
+            saldoReais: { type: [number, 'null'] }
+            ultimoDepositoReais: { type: [number, 'null'] }
+            pesoGramas: { type: [number, 'null'] }
+            luzPercentual: { type: [number, 'null'] }
+            tampaAberta: { type: boolean }
+        atuadores:
+          type: object
+          properties:
+            trava: { type: boolean }
+            cor: { type: string }
+            brilho: { type: [integer, 'null'] }
+            metaReais: { type: [number, 'null'] }
+    Estatisticas:
+      type: object
+      description: Valores em reais. Medidas que exigem mais dados voltam null.
+      properties:
+        periodo: { type: object }
+        n: { type: integer }
+        origem: { type: object, properties: { sensor: { type: integer }, simulado: { type: integer } } }
+        descritiva:
+          type: object
+          description: media, mediana, modas, quartis, variancia, desvios padrão, coeficiente de variação, assimetria (Pearson 1 e 2, Fisher, Bowley) e curtose (percentílica e excesso)
+        frequencias: { type: array, items: { type: object } }
+        histograma: { type: array, items: { type: object } }
+        serieDiaria: { type: array, items: { type: object } }
+        probabilidade: { type: object, description: Probabilidade de depósito por dia da semana e de atingir a meta até dataMeta }
+        regressao: { type: object, description: 'Tendência do saldo no tempo, calibração peso x saldo e previsão da meta.' }
+        inferencia: { type: object, description: IC 95% da média e teste t de Welch (fim de semana x dias úteis) }

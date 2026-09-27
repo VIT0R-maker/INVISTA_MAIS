@@ -1,11 +1,20 @@
 {
   "version": 2,
+  "regions": [
+    "gru1"
+  ],
   "builds": [
     {
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["index.html", "login.html", "cadastro.html", "assets/**"]
+        "includeFiles": [
+          "index.html",
+          "login.html",
+          "cadastro.html",
+          "assets/**",
+          "docs/openapi.yaml"
+        ]
       }
     }
   ],
