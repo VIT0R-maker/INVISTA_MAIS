@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "author": "Invista+",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot", "top": -10, "left": -160, "attrs": { "value": "512" } },
+    { "type": "wokwi-pushbutton", "id": "button", "top": 150, "left": -150, "attrs": { "color": "green", "label": "Registrar consulta" } },
+    { "type": "wokwi-led", "id": "led", "top": 0, "left": 230, "attrs": { "color": "green", "label": "Sinalização" } },
+    { "type": "wokwi-resistor", "id": "resistor", "top": 95, "left": 190, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "pot:VCC", "esp:3V3", "red", [] ],
+    [ "pot:GND", "esp:GND.1", "black", [] ],
+    [ "pot:SIG", "esp:D34", "green", [] ],
+    [ "button:1.l", "esp:D27", "blue", [] ],
+    [ "button:2.l", "esp:GND.1", "black", [] ],
+    [ "esp:D26", "resistor:1", "green", [] ],
+    [ "resistor:2", "led:A", "green", [] ],
+    [ "led:C", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}

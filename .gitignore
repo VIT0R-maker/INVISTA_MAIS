@@ -4,3 +4,10 @@ node_modules/
 !.env.example
 .vercel/
 test-results/
+
+dist/
+data/
+mobile/.expo/
+mobile/export/
+firmware/config.h
+firmware/.pio/

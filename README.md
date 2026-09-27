@@ -1,99 +1,98 @@
-# Invista+ — Scanner fundamentalista com Mentor IA
+# Invista+ · Web, Mobile e IoT
 
-O Invista+ ajuda a estudar ações e fundos imobiliários da B3. O servidor consulta indicadores no Investidor10 e a Selic no Banco Central; calcula estimativas de Graham/Bazin, margens de segurança e o efeito bola de neve dos FIIs. O perfil Conservador, Moderado ou Arrojado muda a interpretação dos indicadores. O Firebase gerencia login e favoritos; a integração IoT existente gera relatórios por e-mail.
+Scanner fundamentalista de ações e FIIs da B3, agora integrado a um terminal financeiro ESP32: **potenciômetro de perfil de risco, botão de registro de consultas e LED de sinalização**. Web em React, aplicativo React Native/Expo, API Express e Firestore. O Mentor Gemini aparece somente após uma busca bem-sucedida, depois de todos os indicadores, e recebe o snapshot assinado da consulta.
 
-## Mentor IA com Gemini
+- **Aplicação:** https://invista-chi.vercel.app
+- **API interativa:** https://invista-chi.vercel.app/api/docs
+- **Contrato OpenAPI:** [docs/openapi.json](docs/openapi.json)
+- **Matriz acadêmica e roteiro de apresentação:** [docs/REQUISITOS-PI.md](docs/REQUISITOS-PI.md)
+- **Circuito, firmware e configuração Wokwi+Blynk:** [firmware/README.md](firmware/README.md)
+- **Aplicativo e instruções Expo:** [mobile/README.md](mobile/README.md)
 
-- Ao concluir uma pesquisa, usuários conectados recebem um resumo educativo do ativo, com indicadores, riscos e limitações. A IA é chamada após a pesquisa, não a cada tecla.
-- O campo de perguntas aceita dúvidas financeiras e mantém as últimas quatro interações. As sugestões ajudam a interpretar indicadores, avaliar riscos e entender diversificação.
-- O ticker, o tipo de ativo e o perfil selecionados acompanham a pergunta. **Nova conversa sem ativo** permite falar de finanças em geral. Trocar ativo, aba, perfil ou conta limpa a conversa; respostas atrasadas são descartadas.
-- Os cards continuam funcionando mesmo quando a IA está indisponível. Há estados de carregamento, erro e nova tentativa.
-- O Gemini recebe os indicadores obtidos pelo próprio servidor, usando a mesma função de análise dos cards. O corpo enviado pelo navegador não fornece os valores usados pela IA.
-- As respostas usam texto simples, sem executar HTML. O sistema instrui a IA a reconhecer dados ausentes, evitar recomendações personalizadas e não inventar notícias, preços ou acesso a ferramentas. Essas instruções reduzem erros, mas não garantem exatidão.
+## Como usar
 
-Não há integração com Claude nem BRAPI nesta versão. A IA não pesquisa a internet. Indicadores podem ter atraso; o horário mostrado é o da consulta, não da atualização na bolsa. A consulta da IA pode usar uma captura diferente da mostrada nos cards se a fonte mudar nesse intervalo. Valuations são estimativas, não preços garantidos. A Selic usada pode vir do cache ou do valor de contingência existente em `lib/bcb.js`.
+1. Em **Terminal IoT**, entre na conta Firebase já usada no Invista+ e vincule o terminal com o código privado definido no servidor.
+2. Configure o ESP32/Wokwi e o dispositivo Blynk conforme o guia. Leituras aparecem no histórico e alimentam os indicadores estatísticos.
+3. O Switch envia o comando pelo Blynk V2. O estado mostrado vem da próxima leitura do ESP32; envio aceito não significa execução confirmada.
+4. Em **Analisar ativos**, pesquise um ticker e escolha o perfil. Se o terminal estiver online, é possível aplicar o perfil selecionado pelo potenciômetro. Os favoritos são persistidos por conta.
+5. Ao final dos indicadores, peça um resumo ao Gemini ou faça uma pergunta financeira. A chave fica no servidor. Até 30 solicitações/dia por conta, com intervalo mínimo de 5 segundos.
 
-## Executar localmente
+A opção **Explorar demonstração** é pública e usa 60 amostras ilustrativas identificadas. Não representa uma conexão real com hardware, não grava no banco e não aciona o LED.
 
-Requer **Node.js 22.13 ou superior** (recomendado: Node 24).
+## Executar a Web e a API localmente
+
+Requer Node 24. No diretório raiz:
 
 ```sh
 npm ci
-```
-
-Copie `.env.example` para `.env`, preencha as variáveis e execute:
-
-```sh
+cp .env.example .env
+npm run build
 npm start
 ```
 
-Abra <http://localhost:3000>. `npm run dev` reinicia o servidor ao editar arquivos. `.env` é carregado pelo Node e ignorado pelo Git. Sem credenciais de IA/Firebase Admin, o scanner continua acessível e o Mentor informa a indisponibilidade.
+No PowerShell: use `Copy-Item .env.example .env`. Preencha as variáveis privadas no arquivo. Abra http://localhost:3000. Para desenvolvimento com recarregamento, execute `npm run dev` (backend) e `npm run dev:web` (Vite) em terminais separados.
 
-| Variável de servidor | Finalidade |
-| --- | --- |
-| `GEMINI_API_KEY` | Chave do Google AI Studio; necessária para o Mentor |
-| `GEMINI_MODEL` | Opcional, padrão `gemini-3.5-flash-lite` |
-| `FIREBASE_PROJECT_ID` | Mesmo projeto do Firebase Auth da interface |
-| `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço Firebase Admin |
-| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço; aceita `\n` literal |
-| `EMAIL_USER`, `EMAIL_PASS` | Credenciais já usadas no relatório IoT por e-mail |
+### Configuração
 
-O login da interface usa a configuração pública Firebase existente nos HTMLs. Essa configuração é distinta da chave Gemini e da chave privada de serviço. Para outro projeto Firebase, atualize os três HTMLs e as variáveis do servidor, e autorize o domínio de acesso no Firebase Authentication.
+| Variável | Uso |
+|---|---|
+| FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY | Conta de serviço do mesmo projeto do login; autenticação Admin e Firestore |
+| GEMINI_API_KEY, GEMINI_MODEL | Mentor Gemini; modelo padrão definido em lib/mentor.js |
+| IOT_DEVICE_ID | ID único deste terminal, padrão terminal-01 |
+| IOT_DEVICE_TOKEN | Segredo exclusivo para envio de telemetria |
+| IOT_PAIRING_CODE | Código privado usado uma vez para associar o terminal à conta |
+| BLYNK_AUTH_TOKEN | Auth Token do dispositivo Blynk |
+| BLYNK_SERVER | Host regional Blynk, padrão blynk.cloud |
+| IOT_STORAGE | firestore em produção; file opcional só em desenvolvimento |
 
-## Ativar na Vercel e no GitHub Pages
+Variáveis marcadas Sensitive na Vercel não são recuperáveis em texto pela listagem da API. Para execução local com Firebase Admin, forneça a conta de serviço localmente; nenhum segredo é exportado pela aplicação. Sem Admin, rotas autenticadas ficam indisponíveis. O armazenamento em arquivo é uma ferramenta de desenvolvimento, não substitui o Firestore na entrega acadêmica ou na Vercel.
 
-1. Publique este código no projeto Vercel que atende o backend. O `vercel.json` encaminha as requisições ao Express e inclui explicitamente HTML/CSS/JS públicos no pacote da função. Use Node 24 e um plano/configuração com tempo de execução suficiente para a consulta de indicadores e a IA (até 60 segundos).
-2. Em **Settings → Environment Variables**, configure `GEMINI_API_KEY` e as três variáveis `FIREBASE_*`. Opcionalmente defina `GEMINI_MODEL`. Depois faça um novo deploy para aplicar as variáveis. Não use prefixos públicos e não coloque segredos em HTML, JavaScript do navegador ou Git.
-3. No Firebase Console → Firestore → Rules, publique as regras de `firestore.rules`, compatíveis com as coleções usadas neste repositório. Se seu banco tiver outras aplicações/coleções, incorpore as regras mantendo os acessos necessários. Remova regras genéricas que liberem todas as coleções: permissões Firestore são cumulativas, e um `allow false` não anula outro `allow true`.
-4. A coleção `mentorUsage` deve ficar inacessível a clientes. O Admin SDK do servidor acessa a coleção por IAM, independentemente dessas regras. Conceda à conta de serviço acesso ao Firestore. O arquivo também mantém favoritos privados por usuário e dispositivos acessíveis somente ao servidor.
-5. No GitHub Pages, a interface usa o backend definido em `assets/config.js`, atualmente `https://invistaai-ochre.vercel.app`. Altere essa URL se o projeto Vercel tiver outro domínio. Em localhost e na Vercel, a interface usa a própria origem. Para Pages, publique `index.html`, `login.html`, `cadastro.html` e a pasta `assets/`.
-6. Entre com uma conta Firebase, pesquise PETR4 na aba Ações ou MXRF11 na aba FIIs, confira o resumo e envie uma pergunta. Também teste **Nova conversa sem ativo**.
+`shared/firebase-config.js` contém somente os identificadores públicos Firebase. Configure login por e-mail/senha e os domínios autorizados (localhost, domínio Vercel e GitHub Pages). As regras `firestore.rules` negam acesso direto a dispositivos/telemetria; os clientes passam pela API, que verifica o dono. A conta Admin deve poder acessar o Firestore. Consultas usam índices de campo único, sem índice composto adicional.
 
-As configurações remotas da Vercel e as regras Firestore **não são publicadas automaticamente** por editar esses arquivos. A chave usada em um teste local também não configura a produção. Chaves expostas em conversas devem ser substituídas antes da ativação definitiva.
+## Dados e análise estatística
 
-## Uso, privacidade e falhas
+Coleções: `iotDevices/{id}` (dono, metadados, última leitura e último comando), `iotDevices/{id}/telemetry/{sessionId-sequence}` (histórico), `users/{uid}` (favoritos), `mentorUsage/{hashUid}` (cota diária). O sistema usa a chave sessão+sequência para deduplicação; conteúdo diferente com a mesma chave retorna 409.
 
-`POST /api/mentor` exige um Firebase ID token no header `Authorization: Bearer ...`. Contas anônimas são recusadas. Há um limite transacional no Firestore de **30 solicitações por conta por dia UTC**, com intervalo mínimo de cinco segundos; ele funciona entre diferentes instâncias da Vercel. A renovação diária ocorre às 00h UTC (21h do dia anterior em Brasília).
+Os gráficos mostram risco ao longo do tempo, distribuição dos perfis e dispersão/regressão. Os indicadores incluem média, moda, mediana, desvio amostral, assimetria, excesso de curtose, probabilidades empíricas e intervalo de Wilson 95%. A janela é limitada a 1.000 amostras na interface; truncamento é indicado. CSV exporta o conjunto exibido. O app calcula os indicadores localmente usando o mesmo módulo matemático da API.
 
-As tentativas aceitas consomem a cota antes de consultar fontes externas, inclusive quando uma fonte falha. O limite por conta não é um teto global de gastos: contas diferentes têm cotas diferentes. Configure também cotas e alertas no projeto Google. A proteção depende de publicar as regras do Firestore indicadas acima.
+Dados de interação não são previsões financeiras. Amostras temporais podem ser autocorrelacionadas; a inferência é exploratória. O scanner depende de dados de terceiros que podem atrasar ou bloquear consultas. As estimativas Graham/Bazin e as cores não são recomendações de compra/venda.
 
-Perguntas, histórico recente e indicadores são enviados ao Google. O servidor não persiste conversas nem registra chaves ou respostas do provedor em logs. O histórico fica somente na memória da página. O Firestore guarda apenas um identificador derivado do UID, dia, contador e horário da última solicitação; o documento é reutilizado no próximo dia. O tratamento de dados pelo Google segue os termos do serviço e do plano da conta.
+## Simulador de API
 
-| Resposta | Significado |
-| --- | --- |
-| 400 / 413 | Pergunta, ticker, perfil, histórico ou tamanho inválido |
-| 401 | Login ausente, expirado, inválido ou anônimo |
-| 422 | Geração bloqueada ou incompleta; reformule a pergunta |
-| 429 | Limite da conta, intervalo mínimo ou cota do provedor |
-| 502 / 504 | Falha da fonte de indicadores, resposta inválida ou timeout da IA |
-| 503 | Chave/modelo/Firebase indisponível ou configuração pendente |
+Depois de vincular o terminal e configurar `IOT_DEVICE_TOKEN`:
 
-O timeout da chamada Gemini é de 20 segundos; o navegador espera até 65 segundos pela operação completa. O scraper mantém o cache original de cinco minutos por instância. Não há repetição automática de chamadas pagas nem cache persistente de respostas de IA.
-
-## Arquitetura
-
-```text
-index.html + assets/    interface, login Firebase, cards e Mentor
-server.js              Express, autenticação da IA, rotas, favoritos/IoT
-lib/analysis.js         análise compartilhada de ações e FIIs
-lib/mentor.js           Gemini, validação, contexto e limite persistente
-lib/scraper.js          Investidor10, retry e cache
-lib/bcb.js              Selic, cache e contingência
-lib/valuation.js        Graham/Bazin
-lib/classify.js         classificação por perfil
-lib/format.js           parsing e formatação pt-BR
-firestore.rules        acesso das coleções do projeto
-test/                  provas do backend e da interface
+```sh
+npm run simulate
 ```
 
-A adaptação Graham Tupiniquim existente continua como `LPA × (5,5 + 2g) × (4,4 / Selic)`, com crescimento e Selic em pontos percentuais. A integração não muda as fórmulas ou os critérios de classificação.
+Envia 30 leituras em intervalos de 10 segundos com origem `simulator`. Variáveis opcionais: `IOT_API_URL`, `SIMULATOR_SAMPLES`. Essa ferramenta testa ingestão e estatística; o requisito Wokwi+Blynk é demonstrado com o firmware e os serviços conectados.
 
-## Verificação
+## Testes e publicação
 
 ```sh
 npm test
+npm run docs:validate
+npm run build
+cd mobile
+npm ci
+npx expo install --check
+npm run export
 ```
 
-Os testes não usam chaves reais nem fazem consultas externas: verificam autenticação, contexto reconstruído no servidor, contratos do Gemini, erros sanitizados, limite de uso, cálculos e interface. Incluem respostas atrasadas, isolamento de histórico, login, erros recuperáveis e conteúdo HTML tratado como texto. Um teste real separado requer as variáveis e os serviços configurados.
+Firmware: `python -m platformio run -d firmware`. CI valida Web/API, mobile e firmware em jobs separados. Os testes cobrem autenticação, isolamento entre contas, validação, idempotência, persistência local, paginação com horários iguais, integração HTTP Blynk simulada, fórmulas estatísticas e o Mentor.
 
-Referências: [API Gemini](https://ai.google.dev/api/generate-content), [modelo padrão](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [segurança de chaves](https://ai.google.dev/gemini-api/docs/api-key).
+Na Vercel, o projeto `invista` constrói o frontend Vite e executa `api/index.js` como função Node. As variáveis ficam no projeto, nunca no bundle. Deploys devem usar o repositório Git; não envie arquivos .env ou config.h.
+
+O GitHub Pages pode publicar `dist` pelo workflow Pages (Settings → Pages → Source: GitHub Actions) e consumir a API Vercel. Se a conta ainda usar publicação da raiz por branch, `index.html` redireciona para o endereço atualizado da aplicação. GitHub Pages não executa backend.
+
+## Estrutura
+
+- `web/`: dashboard React e scanner.
+- `mobile/`: aplicativo Expo Android/iOS/Web.
+- `firmware/`: ESP32, circuito Wokwi, bibliotecas e configuração Blynk.
+- `lib/`: API, Firestore, ingestão, Gemini e análise financeira.
+- `shared/`: estatística, configuração pública e amostra demonstrativa.
+- `docs/`: OpenAPI, matriz de requisitos e evidências de validação.
+- `legacy/index.html`: referência da interface anterior, usada por testes do controlador de Mentor; não é a página publicada.
+
+O antigo envio de relatório por e-mail e a sincronização sem autenticação do protótipo foram descontinuados (HTTP 410). O novo botão registra consultas e o endpoint autenticado de favoritos substitui a sincronização legada.

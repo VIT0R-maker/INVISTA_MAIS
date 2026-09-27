@@ -5,7 +5,7 @@ import { setImmediate } from 'node:timers/promises';
 import { JSDOM } from 'jsdom';
 import { createMentor } from '../assets/mentor.js';
 
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../legacy/index.html', import.meta.url), 'utf8');
 const settle = async () => { for (let i = 0; i < 5; i++) await setImmediate(); };
 const response = (texto, status = 200) => new Response(JSON.stringify(status === 200 ? { texto } : { error: texto }), { status });
 

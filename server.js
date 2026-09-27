@@ -4,240 +4,71 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { fileURLToPath } from 'node:url';
-import nodemailer from 'nodemailer';
 import { createMentorHandler, reservarUso } from './lib/mentor.js';
 import { criarContextoMentor } from './lib/mentor-context.js';
-
 import { analisarAtivo, validarAtivo } from './lib/analysis.js';
 import { perfisAcoesDisponiveis, perfisFiiDisponiveis } from './lib/classify.js';
-const app = express();
-const port = process.env.PORT || 3000;
+import { createIotRouter } from './lib/iot.js';
+import { firestoreIotStore, fileIotStore } from './lib/iot-store.js';
 
+const app = express();
+app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json({ limit: '48kb' }));
-
-// Lista explícita: nunca expor .env, código do servidor ou credenciais como arquivos estáticos.
-for (const file of ['index.html', 'login.html', 'cadastro.html', 'assets/mentor.js', 'assets/mentor.css', 'assets/config.js']) {
-  app.get(`/${file}`, (_req, res) => res.sendFile(fileURLToPath(new URL(file, import.meta.url))));
-}
-
-// 1. Inicialização segura do Firestore com os módulos modernos
 let db;
 try {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
-      })
-    });
-  }
+  if (!getApps().length) initializeApp({ credential: cert({
+    projectId: process.env.FIREBASE_PROJECT_ID, clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }) });
   db = getFirestore();
-  console.log("🔥 Firestore conectado com sucesso!");
-} catch (error) {
-  console.error("❌ Falha crítica ao conectar no Firebase:", error.message);
-}
-
-// 2. Configura o "carteiro" (Nodemailer) com a sua Senha de App
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-app.get('/', (_req, res) => res.sendFile(fileURLToPath(new URL('index.html', import.meta.url))));
-
-// Rota de Pulsação
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: "Online 🟢", 
-        sistema: "Motor Quântico InvistaAI", 
-        mensagem: "API operando em capacidade máxima. Acesse a interface pelo GitHub Pages." 
-    });
-});
-
-app.post('/api/mentor', createMentorHandler({
-  verifyToken: token => getAuth().verifyIdToken(token),
-  consumeQuota: uid => reservarUso(db, uid),
-}));
-
-function tratarErro(res, error, ticker, tipo) {
-  console.error(`Erro ${tipo}:`, error.message);
-
-  if (error.possivelBloqueio) {
-    return res.status(502).json({
-      error: 'O investidor10 recusou ou limitou a requisição (possível bloqueio de IP do servidor). Tente novamente em alguns minutos.',
-    });
-  }
-
-  const status = error.response?.status === 404 ? 404 : 502;
-  const msg = status === 404
-      ? `${tipo === 'FII' ? 'Fundo' : 'Ticker'} "${ticker.toUpperCase()}" não encontrado.`
-      : 'Não foi possível consultar os dados agora. Tente novamente em instantes.';
-  res.status(status).json({ error: msg });
-}
-
-app.get('/api/perfis', (_req, res) => {
-  res.json({ acoes: perfisAcoesDisponiveis(), fiis: perfisFiiDisponiveis() });
-});
-
-app.post('/api/acoes', async (req, res) => {
-  let ticker;
+} catch { console.warn('Firebase Admin não configurado. Rotas autenticadas exigem configuração.'); }
+const iotStore = process.env.IOT_STORAGE === 'file' && !process.env.VERCEL
+  ? fileIotStore() : db ? firestoreIotStore(db) : null;
+const verifyToken = token => getAuth().verifyIdToken(token);
+app.use('/api/v1', createIotRouter({ getStore: () => iotStore, verifyToken }));
+app.get('/api/health', (_req, res) => res.json({ status: 'online', version: '3.0.0', database: Boolean(db), mentor: Boolean(process.env.GEMINI_API_KEY) }));
+app.get('/api/perfis', (_req, res) => res.json({ acoes: perfisAcoesDisponiveis(), fiis: perfisFiiDisponiveis() }));
+app.post('/api/mentor', createMentorHandler({ verifyToken, consumeQuota: uid => reservarUso(db, uid) }));
+for (const tipo of ['acoes', 'fiis']) app.post('/api/' + tipo, async (req, res) => {
   try {
     const input = validarAtivo(req.body);
-    ticker = input.ticker;
-    const indicadores = await analisarAtivo({ ...input, tipo: 'acoes' });
-    res.json({ ...indicadores, mentorContext: criarContextoMentor(indicadores, 'acoes', process.env.GEMINI_API_KEY) });
-  } catch (error) {
-    if (error.status === 400) return res.status(400).json({ error: error.message });
-    tratarErro(res, error, ticker || '', 'Ação');
+    const indicators = await analisarAtivo({ ...input, tipo });
+    res.json({ ...indicators, mentorContext: criarContextoMentor(indicators, tipo, process.env.GEMINI_API_KEY) });
+  } catch (e) {
+    const status = e.status === 400 ? 400 : e.response?.status === 404 ? 404 : 502;
+    res.status(status).json({ error: status === 400 ? e.message : status === 404 ? 'Ativo não encontrado.' : 'A fonte de cotações está indisponível ou limitou o acesso. Tente novamente em instantes.' });
   }
 });
-
-app.post('/api/fiis', async (req, res) => {
-  let ticker;
+app.use('/api/v1/favorites', async (req, res, next) => {
   try {
-    const input = validarAtivo(req.body);
-    ticker = input.ticker;
-    const indicadores = await analisarAtivo({ ...input, tipo: 'fiis' });
-    res.json({ ...indicadores, mentorContext: criarContextoMentor(indicadores, 'fiis', process.env.GEMINI_API_KEY) });
-  } catch (error) {
-    if (error.status === 400) return res.status(400).json({ error: error.message });
-    tratarErro(res, error, ticker || '', 'FII');
-  }
+    const token = /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
+    if (!token) return res.status(401).json({ error: 'Entre na sua conta.' });
+    const user = await verifyToken(token);
+    if (!user.uid || user.firebase?.sign_in_provider === 'anonymous') throw new Error();
+    req.uid = user.uid; next();
+  } catch { res.status(401).json({ error: 'Sessão inválida. Entre novamente.' }); }
 });
-
-// =================================================================
-// ROTA DE SINCRONIZAÇÃO: FRONTEND -> FIREBASE
-// =================================================================
-app.post('/api/favoritos/sync', async (req, res) => {
-  const { deviceId, favoritos } = req.body;
-  
-  if (!deviceId || !Array.isArray(favoritos)) {
-    return res.status(400).json({ error: 'Dados inválidos.' });
-  }
-
-  try {
-    if (!db) throw new Error("Banco de dados não está conectado.");
-    
-    // Atualiza apenas a matriz 'ativosFavoritos' no documento do usuário
-    const docRef = db.collection('devices').doc(deviceId);
-    await docRef.set({ ativosFavoritos: favoritos }, { merge: true });
-    
-    console.log(`[Sync] Nuvem atualizada para o aparelho ${deviceId}:`, favoritos);
-    res.json({ success: true, message: 'Sincronizado com sucesso!' });
-
-  } catch (error) {
-    console.error("Erro ao sincronizar favoritos na nuvem:", error);
-    res.status(500).json({ error: 'Falha ao salvar na nuvem.' });
-  }
+app.get('/api/v1/favorites', async (req, res) => {
+  try { if (!db) throw new Error(); const doc = await db.collection('users').doc(req.uid).get(); res.json({ tickers: doc.data()?.ativosFavoritos || [] }); }
+  catch { res.status(503).json({ error: 'Banco indisponível.' }); }
 });
-
-// =================================================================
-// ROTA DO IOT: FIREBASE REAL + GMAIL + VALUATION
-// =================================================================
-app.post('/api/relatorio', async (req, res) => {
-  const { deviceId } = req.body;
-  if (!deviceId) return res.status(400).json({ error: 'Device ID não informado.' });
-
-  try {
-    if (!db) throw new Error("Banco de dados não está conectado.");
-
-    const docRef = db.collection('devices').doc(deviceId);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Aparelho não cadastrado no Firebase.' });
-    }
-
-    const usuario = doc.data();
-    console.log(`[IoT] Analisando ativos de ${usuario.nome}: ${usuario.ativosFavoritos.join(', ')}`);
-
-    let relatorioHTML = `
-      <div style="font-family: Arial; color: #333;">
-        <h2 style="color: #0056b3;">Relatório Invista+</h2>
-        <p>Olá, <b>${usuario.nome}</b>! Aqui está a análise atualizada da sua carteira disparada pelo seu dispositivo físico:</p>
-        <hr>
-    `;
-    
-    for (const ticker of usuario.ativosFavoritos) {
-      try {
-        // Verifica se o ticker é um Fundo Imobiliário (termina com 11) ou Ação
-        const isFii = ticker.endsWith('11');
-        const endpoint = isFii ? 'api/fiis' : 'api/acoes';
-
-        const response = await fetch(`https://invistaai-ochre.vercel.app/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticker: ticker, perfil: "moderado" })
-        });
-        
-        const dados = await response.json();
-        
-        if (isFii) {
-          // Layout específico para FIIs
-          relatorioHTML += `
-            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #28a745; background: #f9f9f9;">
-              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(FII)</span></h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
-                <li><b>P/VP:</b> ${dados.pvp?.value || '-'}</li>
-                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
-                <li><b>Último Rendimento:</b> ${dados.ultimoRendimento?.value || '-'}</li>
-              </ul>
-            </div>
-          `;
-        } else {
-          // Layout original para Ações
-          relatorioHTML += `
-            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #0056b3; background: #f9f9f9;">
-              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(Ação)</span></h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
-                <li><b>P/L:</b> ${dados.pl?.value || '-'}</li>
-                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
-                <li><b>Valor de Graham:</b> ${dados.valorGrahamTupiniquim?.value || '-'}</li>
-              </ul>
-            </div>
-          `;
-        }
-      } catch (e) {
-        relatorioHTML += `<p><b>${ticker}:</b> Falha ao analisar este ativo no momento.</p>`;
-      }
-    }
-    
-    relatorioHTML += `<br><p><i>Análise gerada automaticamente pelo sistema Invista+ IoT.</i></p></div>`;
-
-    await transporter.sendMail({
-      from: `"Motor Invista+" <${process.env.EMAIL_USER}>`,
-      to: usuario.email,
-      subject: `📈 Relatório de Ativos Invista+ (${usuario.nome})`,
-      html: relatorioHTML
-    });
-
-    console.log(`[IoT] E-mail enviado com sucesso para ${usuario.email}!`);
-    res.json({ success: true, message: "Relatorio enviado no e-mail!" });
-
-  } catch (error) {
-    console.error("Erro geral no IoT:", error);
-    res.status(500).json({ error: 'Falha ao processar relatório.' });
-  }
+app.put('/api/v1/favorites', async (req, res) => {
+  const tickers = req.body?.tickers;
+  if (!Array.isArray(tickers) || tickers.length > 30 || tickers.some(t => typeof t !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(t))) return res.status(400).json({ error: 'Informe até 30 tickers válidos.' });
+  try { if (!db) throw new Error(); const unique = [...new Set(tickers)]; await db.collection('users').doc(req.uid).set({ ativosFavoritos: unique }, { merge: true }); res.json({ tickers: unique }); }
+  catch { res.status(503).json({ error: 'Banco indisponível.' }); }
 });
-
+// O novo terminal registra consultas por botão; envio de e-mails do protótipo foi descontinuado.
+app.post(['/api/favoritos/sync', '/api/relatorio'], (_req, res) => res.status(410).json({ error: 'Rota legada descontinuada. Consulte /api/docs para a API autenticada v1.' }));
+app.get('/api/openapi.json', (_req, res) => res.sendFile(fileURLToPath(new URL('docs/openapi.json', import.meta.url))));
+app.get('/api/docs', (_req, res) => res.sendFile(fileURLToPath(new URL('docs/api.html', import.meta.url))));
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint não encontrado.' }));
+app.use(express.static(fileURLToPath(new URL('dist', import.meta.url))));
+app.get('*', (_req, res) => res.sendFile(fileURLToPath(new URL('dist/index.html', import.meta.url))));
 app.use((error, _req, res, _next) => {
   const status = error.type === 'entity.too.large' ? 413 : error.type === 'entity.parse.failed' ? 400 : 500;
   res.status(status).json({ error: status === 413 ? 'Mensagem muito grande.' : status === 400 ? 'JSON inválido.' : 'Erro interno do servidor.' });
 });
-
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL && process.env.NODE_ENV !== 'test') {
-  app.listen(port, () => {
-    console.log(`🚀 Motor Quântico operando em http://localhost:${port}`);
-  });
-}
-
-// Configuração estática lida pelo runtime Node da Vercel.
-export const config = { maxDuration: 60 };
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') app.listen(process.env.PORT || 3000, () => console.log('Invista+ em http://localhost:' + (process.env.PORT || 3000)));
 export default app;

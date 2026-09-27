@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Invista+ Terminal",
+    "slug": "invista-terminal",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.invista.terminal" },
+    "android": { "package": "com.invista.terminal" },
+    "web": { "bundler": "metro" }
+  }
+}

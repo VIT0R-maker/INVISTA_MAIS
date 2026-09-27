@@ -11,6 +11,9 @@ service cloud.firestore {
     match /devices/{document} {
       allow read, write: if false;
     }
+    match /iotDevices/{document=**} {
+      allow read, write: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

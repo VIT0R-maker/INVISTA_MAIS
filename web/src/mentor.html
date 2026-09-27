@@ -1,0 +1,31 @@
+<section class="mentor" id="mentor" aria-labelledby="mentor-title" hidden>
+            <div class="mentor-heading">
+                <div>
+                    <span class="mentor-eyebrow">APROFUNDE SUA ANÁLISE</span>
+                    <h2 id="mentor-title">Mentor IA <span aria-hidden="true">✦</span></h2>
+                    <p class="mentor-context" id="mentor-context"></p>
+                </div>
+                <button type="button" id="mentor-clear">Limpar conversa</button>
+            </div>
+            <p class="mentor-status" id="mentor-status" role="status" aria-live="polite">Entre na sua conta para usar o Mentor IA.</p>
+            <a class="mentor-login" id="mentor-login" href="#conta">Entrar para conversar</a>
+            <div class="mentor-actions">
+                <button type="button" id="mentor-summary" disabled>Resumir ativo</button>
+                <button type="button" id="mentor-retry" hidden>Tentar novamente</button>
+            </div>
+            <div class="mentor-messages" id="mentor-messages" role="log" aria-label="Conversa com o Mentor IA" aria-live="polite"></div>
+            <p class="mentor-source" id="mentor-source"></p>
+            <div class="mentor-suggestions" aria-label="Sugestões de perguntas">
+                <button type="button" data-question="Como interpretar P/VP e dividend yield em conjunto?" disabled>Entender indicadores</button>
+                <button type="button" data-question="Quais riscos e pontos de atenção aparecem nos indicadores deste ativo?" disabled>Conhecer os riscos</button>
+                <button type="button" data-question="Como interpretar os valores justos, preços teto ou efeito bola de neve calculados nesta análise?" disabled>Entender os cálculos</button>
+            </div>
+            <form id="mentor-form">
+                <label for="mentor-question">Sua dúvida financeira</label>
+                <div class="mentor-compose">
+                    <textarea id="mentor-question" maxlength="1500" rows="2" placeholder="Ex.: um dividend yield alto é sempre um bom sinal?" required disabled></textarea>
+                    <button type="submit" disabled>Enviar pergunta</button>
+                </div>
+            </form>
+            <p class="mentor-note">Conteúdo educativo gerado por Gemini; pode conter erros e não é recomendação de investimento. Até 30 consultas por dia. Perguntas e indicadores são enviados ao Google; não inclua dados pessoais.</p>
+        </section>
